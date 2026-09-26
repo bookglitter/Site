@@ -41,9 +41,10 @@
     }
     input[type=search] { flex: 1; min-width: 180px; }
     .go {
-      display: inline-block; background: linear-gradient(180deg, var(--purple), var(--purple-2));
-      color: #fff; border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer;
+      display: block; width: 100%; background: linear-gradient(180deg, var(--purple), var(--purple-2));
+      color: #fff; border: 0; border-radius: 999px; padding: 14px 22px; cursor: pointer;
       font-family: system-ui, sans-serif; font-weight: 600; letter-spacing: .02em;
+      margin: 10px 0 14px;
     }
     .go:disabled { opacity: .5; cursor: wait; }
     .hint { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
@@ -100,9 +101,9 @@
           <option value="year">Sort: Newest</option>
         </select>
       </div>
-      <p class="hint">Leave a slider at 0 to ignore it. Set 1–5 to require that exact Sunday Slider value.</p>
-      <div class="card" id="browse-sliders"></div>
       <button class="go" id="run-browse" type="button">Apply filters</button>
+      <p class="hint">Leave a slider on “any” to ignore it. Move one only if you care about that slider.</p>
+      <div class="card" id="browse-sliders"></div>
     </div>
 
     <p class="status" id="status">Loading the library…</p>
