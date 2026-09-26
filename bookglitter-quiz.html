@@ -61,6 +61,13 @@
     .book a { color: var(--purple); text-decoration: none; font-size: .85rem; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .status { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; }
+    .disclosure { font-family: system-ui, sans-serif; color: var(--muted); font-size: .75rem; font-style: italic; margin: 6px 0 0; }
+    .more {
+      display: block; margin: 16px auto 0; background: transparent; color: var(--silver);
+      border: 1px solid var(--line); border-radius: 999px; padding: 10px 20px; cursor: pointer;
+      font-family: system-ui, sans-serif; font-size: .9rem;
+    }
+    .more[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -107,7 +114,9 @@
     </div>
 
     <p class="status" id="status">Loading the library…</p>
+    <p class="disclosure">As an Amazon Associate I earn from qualifying purchases. Buying through these links supports Book Glitter at no extra cost to you.</p>
     <div class="results" id="results"></div>
+    <button class="more" id="more" type="button" hidden>Show more books</button>
   </div>
 
   <script>
@@ -117,6 +126,23 @@
           and paste the web-app URL below as DATA_URL.
     */
     const DATA_URL = "bookglitter-books.json";
+
+    /* Amazon Associates tracking ID — added to every Amazon link at render time. */
+    const AMAZON_TAG = "bookglitter-20";
+
+    function affUrl(u) {
+      try {
+        const url = new URL(u);
+        if (/(^|\.)amazon\./i.test(url.hostname)) url.searchParams.set("tag", AMAZON_TAG);
+        return url.toString();
+      } catch (e) {
+        return u;
+      }
+    }
+
+    const PAGE_SIZE = 30;
+    let browseList = [];
+    let browseShown = 0;
 
     const SLIDERS = [
       { key: 0, left: "Romance is a side plot", right: "Romance is the point" },
@@ -159,6 +185,7 @@
       document.getElementById("tab-quiz").classList.toggle("on", which === "quiz");
       document.getElementById("tab-browse").classList.toggle("on", which === "browse");
       document.getElementById("results").innerHTML = "";
+      document.getElementById("more").hidden = true;
     }
     const startView = new URLSearchParams(location.search).get("view");
     if (startView === "library" || startView === "browse") show("browse");
@@ -195,7 +222,7 @@
           <h3>${escapeHtml(b.t)}</h3>
           <div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g)}${b.y ? " · " + b.y : ""} · GR ${b.gr.toFixed(2)}</div>
           <div class="pills">${why}</div>
-          ${b.u ? `<a href="${b.u}" target="_blank" rel="noopener">Where to buy</a>` : ""}
+          ${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}
         </article>`;
       }).join("");
     }
@@ -229,6 +256,7 @@
         .sort((a, c) => a.d - c.d || c.gr - a.gr)
         .slice(0, 12);
       document.getElementById("status").textContent = `12 closest matches from ${BOOKS.length} books.`;
+      document.getElementById("more").hidden = true;
       render(scored.map(x => x.b), want, "quiz");
     };
 
@@ -245,14 +273,28 @@
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
         if (q && !(`${b.t} ${b.a}`.toLowerCase().includes(q))) return false;
-        return want.every((v, i) => !v || (b.r[i] || 3) === v);
+        /* Within 1 point counts as a match, so in-between slider values still return books. */
+        return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
       });
       if (sort === "gr") list.sort((a, b) => b.gr - a.gr);
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
       if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
-      document.getElementById("status").textContent = `${list.length} books. Showing the first 30.`;
-      render(list.slice(0, 30), null, "browse");
+      browseList = list;
+      browseShown = Math.min(PAGE_SIZE, list.length);
+      showBrowse();
     }
+
+    function showBrowse() {
+      document.getElementById("status").textContent =
+        `${browseList.length} books. Showing ${browseShown}.`;
+      render(browseList.slice(0, browseShown), null, "browse");
+      document.getElementById("more").hidden = browseShown >= browseList.length;
+    }
+
+    document.getElementById("more").onclick = () => {
+      browseShown = Math.min(browseShown + PAGE_SIZE, browseList.length);
+      showBrowse();
+    };
 
     async function load() {
       const status = document.getElementById("status");
