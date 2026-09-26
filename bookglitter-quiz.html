@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Book Glitter — Sunday Sliders</title>
+  <style>
+    :root {
+      --navy: #0b1726;
+      --navy-2: #12233a;
+      --ink: #e8eef8;
+      --muted: #9aabc4;
+      --silver: #c9d4e8;
+      --purple: #8b7cc8;
+      --purple-2: #6d5fb3;
+      --line: rgba(201,212,232,.18);
+      --card: #15283f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; }
+    body { padding: 24px 16px 64px; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-weight: 600; letter-spacing: .04em; font-size: 1.8rem; margin: 0 0 .25rem; }
+    .sub { color: var(--muted); font-family: system-ui, sans-serif; font-size: .95rem; margin-bottom: 1.25rem; }
+    .tabs { display: flex; gap: 8px; margin: 18px 0 22px; font-family: system-ui, sans-serif; }
+    .tab {
+      background: transparent; color: var(--silver); border: 1px solid var(--line);
+      padding: 10px 16px; border-radius: 999px; cursor: pointer; font-size: .9rem;
+    }
+    .tab.on { background: var(--purple-2); border-color: var(--purple); color: #fff; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 8px; margin-bottom: 14px; }
+    .row { margin: 0 0 16px; }
+    .lab { display: flex; justify-content: space-between; gap: 12px; font-family: system-ui, sans-serif; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+    .lab b { color: var(--ink); font-weight: 600; }
+    input[type=range] { width: 100%; accent-color: var(--purple); }
+    .ends { display: flex; justify-content: space-between; font-family: system-ui, sans-serif; font-size: .72rem; color: var(--muted); }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 16px; font-family: system-ui, sans-serif; }
+    select, input[type=search] {
+      background: var(--navy-2); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; font-size: .9rem;
+    }
+    input[type=search] { flex: 1; min-width: 180px; }
+    .go {
+      display: inline-block; background: linear-gradient(180deg, var(--purple), var(--purple-2));
+      color: #fff; border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer;
+      font-family: system-ui, sans-serif; font-weight: 600; letter-spacing: .02em;
+    }
+    .go:disabled { opacity: .5; cursor: wait; }
+    .hint { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+    .results { display: grid; gap: 12px; margin-top: 18px; }
+    .book {
+      background: var(--navy-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+      font-family: system-ui, sans-serif;
+    }
+    .book h3 { font-family: Georgia, serif; margin: 0 0 4px; font-size: 1.15rem; }
+    .meta { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .pill { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--silver); }
+    .why { font-size: .82rem; color: var(--silver); }
+    .book a { color: var(--purple); text-decoration: none; font-size: .85rem; }
+    .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
+    .status { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sunday Sliders</h1>
+    <p class="sub">Tell Book Glitter what kind of romantasy weekend you want. I’ll match the database — no dunking, no spoilers, no wasted Sunday.</p>
+    <div class="tabs">
+      <button class="tab on" id="tab-quiz" type="button">Quiz</button>
+      <button class="tab" id="tab-browse" type="button">Browse &amp; filter</button>
+    </div>
+
+    <div id="panel-quiz">
+      <div class="card" id="quiz-sliders"></div>
+      <div class="filters">
+        <select id="q-stand">
+          <option value="">Standalone or series</option>
+          <option value="Y">Standalone only</option>
+          <option value="N">Series only</option>
+        </select>
+        <select id="q-genre"><option value="">Any subgenre</option></select>
+      </div>
+      <button class="go" id="run-quiz" type="button">Find my next book</button>
+      <p class="hint">Match is closest sliders first, then higher Goodreads as the tie-break. This is a guide, not a verdict.</p>
+    </div>
+
+    <div id="panel-browse" hidden>
+      <div class="filters">
+        <input type="search" id="search" placeholder="Search title or author" />
+        <select id="b-stand">
+          <option value="">Standalone or series</option>
+          <option value="Y">Standalone only</option>
+          <option value="N">Series only</option>
+        </select>
+        <select id="b-genre"><option value="">Any subgenre</option></select>
+        <select id="b-sort">
+          <option value="gr">Sort: Goodreads</option>
+          <option value="title">Sort: Title</option>
+          <option value="year">Sort: Newest</option>
+        </select>
+      </div>
+      <p class="hint">Leave a slider at 0 to ignore it. Set 1–5 to require that exact Sunday Slider value.</p>
+      <div class="card" id="browse-sliders"></div>
+      <button class="go" id="run-browse" type="button">Apply filters</button>
+    </div>
+
+    <p class="status" id="status">Loading the library…</p>
+    <div class="results" id="results"></div>
+  </div>
+
+  <script>
+    /* ========= CONFIG =========
+       1) Easiest now: keep books.json next to this file.
+       2) Live sheet: deploy the Apps Script in bookglitter-apps-script.js
+          and paste the web-app URL below as DATA_URL.
+    */
+    const DATA_URL = "bookglitter-books.json";
+
+    const SLIDERS = [
+      { key: 0, left: "Romance is a side plot", right: "Romance is the point" },
+      { key: 1, left: "Light", right: "Dark" },
+      { key: 2, left: "One book", right: "Long series" },
+      { key: 3, left: "Closed door", right: "Open door" },
+      { key: 4, left: "Quest", right: "Court" },
+      { key: 5, left: "Read once", right: "Read again" }
+    ];
+
+    let BOOKS = [];
+
+    function sliderHTML(prefix, start) {
+      return SLIDERS.map((s, i) => `
+        <div class="row">
+          <div class="lab"><span>${s.left}</span><b id="${prefix}-val-${i}">${start}</b><span>${s.right}</span></div>
+          <input type="range" min="${start === 0 ? 0 : 1}" max="5" step="1" value="${start}" id="${prefix}-${i}" />
+          <div class="ends"><span>1</span><span>5</span></div>
+        </div>`).join("");
+    }
+
+    document.getElementById("quiz-sliders").innerHTML = sliderHTML("q", 3);
+    document.getElementById("browse-sliders").innerHTML = sliderHTML("b", 0);
+
+    function bindVals(prefix) {
+      SLIDERS.forEach((_, i) => {
+        const el = document.getElementById(`${prefix}-${i}`);
+        const lab = document.getElementById(`${prefix}-val-${i}`);
+        const paint = () => { lab.textContent = el.value === "0" ? "any" : el.value; };
+        el.addEventListener("input", paint); paint();
+      });
+    }
+    bindVals("q"); bindVals("b");
+
+    document.getElementById("tab-quiz").onclick = () => show("quiz");
+    document.getElementById("tab-browse").onclick = () => show("browse");
+    function show(which) {
+      document.getElementById("panel-quiz").hidden = which !== "quiz";
+      document.getElementById("panel-browse").hidden = which !== "browse";
+      document.getElementById("tab-quiz").classList.toggle("on", which === "quiz");
+      document.getElementById("tab-browse").classList.toggle("on", which === "browse");
+      document.getElementById("results").innerHTML = "";
+    }
+    const startView = new URLSearchParams(location.search).get("view");
+    if (startView === "library" || startView === "browse") show("browse");
+
+    function readSliders(prefix) {
+      return SLIDERS.map((_, i) => Number(document.getElementById(`${prefix}-${i}`).value));
+    }
+
+    function distance(book, want) {
+      let d = 0, used = 0;
+      want.forEach((v, i) => {
+        if (!v) return;
+        d += Math.abs((book.r[i] || 3) - v);
+        used += 1;
+      });
+      return { d, used };
+    }
+
+    function render(list, want, mode) {
+      const box = document.getElementById("results");
+      if (!list.length) {
+        box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
+        return;
+      }
+      box.innerHTML = list.map(b => {
+        const why = want
+          ? SLIDERS.map((s, i) => {
+              if (!want[i]) return "";
+              const hit = Math.abs((b.r[i] || 3) - want[i]) <= 1;
+              return hit ? `<span class="pill">${s.right.split(" ").slice(-2).join(" ")} ${b.r[i]}</span>` : "";
+            }).join("")
+          : `<span class="pill">${b.g}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
+        return `<article class="book">
+          <h3>${escapeHtml(b.t)}</h3>
+          <div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g)}${b.y ? " · " + b.y : ""} · GR ${b.gr.toFixed(2)}</div>
+          <div class="pills">${why}</div>
+          ${b.u ? `<a href="${b.u}" target="_blank" rel="noopener">Where to buy</a>` : ""}
+        </article>`;
+      }).join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+
+    function fillGenres() {
+      const genres = [...new Set(BOOKS.map(b => b.g).filter(Boolean))].sort();
+      ["q-genre", "b-genre"].forEach(id => {
+        const sel = document.getElementById(id);
+        genres.forEach(g => {
+          const o = document.createElement("option");
+          o.value = g; o.textContent = g; sel.appendChild(o);
+        });
+      });
+    }
+
+    document.getElementById("run-quiz").onclick = () => {
+      const want = readSliders("q");
+      const stand = document.getElementById("q-stand").value;
+      const genre = document.getElementById("q-genre").value;
+      const scored = BOOKS
+        .filter(b => !stand || b.s === stand)
+        .filter(b => !genre || b.g === genre)
+        .map(b => {
+          const { d, used } = distance(b, want);
+          return { b, d, used, gr: b.gr };
+        })
+        .sort((a, c) => a.d - c.d || c.gr - a.gr)
+        .slice(0, 12);
+      document.getElementById("status").textContent = `12 closest matches from ${BOOKS.length} books.`;
+      render(scored.map(x => x.b), want, "quiz");
+    };
+
+    document.getElementById("run-browse").onclick = runBrowse;
+    document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
+
+    function runBrowse() {
+      const want = readSliders("b");
+      const stand = document.getElementById("b-stand").value;
+      const genre = document.getElementById("b-genre").value;
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const sort = document.getElementById("b-sort").value;
+      let list = BOOKS.filter(b => {
+        if (stand && b.s !== stand) return false;
+        if (genre && b.g !== genre) return false;
+        if (q && !(`${b.t} ${b.a}`.toLowerCase().includes(q))) return false;
+        return want.every((v, i) => !v || (b.r[i] || 3) === v);
+      });
+      if (sort === "gr") list.sort((a, b) => b.gr - a.gr);
+      if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
+      if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
+      document.getElementById("status").textContent = `${list.length} books. Showing the first 30.`;
+      render(list.slice(0, 30), null, "browse");
+    }
+
+    async function load() {
+      const status = document.getElementById("status");
+      try {
+        const res = await fetch(DATA_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status);
+        BOOKS = await res.json();
+        if (BOOKS && BOOKS.books) BOOKS = BOOKS.books;
+        fillGenres();
+        status.textContent = `${BOOKS.length} books loaded. Set the sliders and go.`;
+      } catch (err) {
+        status.innerHTML = `<span class="err">Could not load the library from ${DATA_URL}. Upload bookglitter-books.json next to this page, or paste your Apps Script web-app URL into DATA_URL.</span>`;
+        console.error(err);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
