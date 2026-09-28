@@ -242,24 +242,34 @@
       const key = `${b.t}|${b.a}`;
       return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
     }
+    async function lookupCover(title, author) {
+      const ol = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=1&fields=cover_i`);
+      if (ol.ok) {
+        const data = await ol.json();
+        const id = data.docs && data.docs[0] && data.docs[0].cover_i;
+        if (id) return `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
+      }
+      const q = `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`;
+      const gb = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo/imageLinks/thumbnail)`);
+      if (gb.ok) {
+        const data = await gb.json();
+        const thumb = data.items && data.items[0] && data.items[0].volumeInfo && data.items[0].volumeInfo.imageLinks && data.items[0].volumeInfo.imageLinks.thumbnail;
+        if (thumb) return thumb.replace("http://", "https://").replace("&edge=curl", "");
+      }
+      return "";
+    }
     async function hydrateCovers() {
-      for (const wrap of document.querySelectorAll(".cover-wrap[data-cover]")) {
+      const wraps = [...document.querySelectorAll(".cover-wrap[data-cover]")];
+      for (const wrap of wraps) {
         const key = wrap.dataset.cover;
         const [t, a] = key.split("|");
         const img = wrap.querySelector("img");
         try {
-          if (coverCache[key] === undefined) {
-            const q = `intitle:${encodeURIComponent(t)}+inauthor:${encodeURIComponent(a)}`;
-            const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo/imageLinks/thumbnail)`);
-            const data = await res.json();
-            const thumb = data.items && data.items[0] && data.items[0].volumeInfo && data.items[0].volumeInfo.imageLinks && data.items[0].volumeInfo.imageLinks.thumbnail;
-            coverCache[key] = thumb ? thumb.replace("http://", "https://") : "";
-          }
-          if (coverCache[key]) {
-            img.src = coverCache[key];
-            img.classList.add("show");
-            wrap.classList.add("has-img");
-          }
+          if (coverCache[key] === undefined) coverCache[key] = await lookupCover(t, a);
+          if (!coverCache[key]) continue;
+          img.onload = () => { img.classList.add("show"); wrap.classList.add("has-img"); };
+          img.onerror = () => { coverCache[key] = ""; img.classList.remove("show"); wrap.classList.remove("has-img"); };
+          img.src = coverCache[key];
         } catch (e) {}
       }
     }
