@@ -79,15 +79,24 @@
     .disclosure { font-size: .72rem; font-style: italic; }
     .results { display: grid; gap: 10px; margin-top: 12px; }
     .book {
-      display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start;
-      background: var(--navy-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--navy-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
       font-family: system-ui, sans-serif;
     }
-    .cover { width: 56px; height: 84px; border-radius: 4px; object-fit: cover; background: #1a2c44; display: block; }
-    .cover.ph {
-      display: flex; align-items: center; justify-content: center;
+    .cover-wrap {
+      flex: 0 0 56px; width: 56px; height: 84px; position: relative;
+      border-radius: 4px; overflow: hidden; background: #1a2c44;
+    }
+    .cover-wrap img {
+      width: 100%; height: 100%; object-fit: cover; display: none;
+    }
+    .cover-wrap img.show { display: block; }
+    .cover-wrap .ph {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       color: var(--silver); font-family: Georgia, serif; font-size: 1.2rem;
     }
+    .cover-wrap.has-img .ph { display: none; }
+    .book .info { flex: 1; min-width: 0; }
     .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
     .pills { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
@@ -103,8 +112,7 @@
     @media (min-width: 720px) {
       .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
       .cell { min-height: 58px; font-size: .78rem; }
-      .book { grid-template-columns: 72px 1fr; }
-      .cover { width: 72px; height: 108px; }
+      .cover-wrap { flex-basis: 72px; width: 72px; height: 108px; }
     }
   </style>
 </head>
@@ -232,12 +240,13 @@
     }
     function coverEl(b) {
       const key = `${b.t}|${b.a}`;
-      return `<img class="cover" alt="" data-cover="${escapeHtml(key)}" hidden /><div class="cover ph" data-ph="${escapeHtml(key)}">${escapeHtml((b.t || "?").charAt(0))}</div>`;
+      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
     }
     async function hydrateCovers() {
-      for (const img of document.querySelectorAll("img[data-cover]")) {
-        const key = img.dataset.cover;
+      for (const wrap of document.querySelectorAll(".cover-wrap[data-cover]")) {
+        const key = wrap.dataset.cover;
         const [t, a] = key.split("|");
+        const img = wrap.querySelector("img");
         try {
           if (coverCache[key] === undefined) {
             const q = `intitle:${encodeURIComponent(t)}+inauthor:${encodeURIComponent(a)}`;
@@ -248,9 +257,8 @@
           }
           if (coverCache[key]) {
             img.src = coverCache[key];
-            img.hidden = false;
-            const ph = document.querySelector(`[data-ph="${CSS.escape(key)}"]`);
-            if (ph) ph.remove();
+            img.classList.add("show");
+            wrap.classList.add("has-img");
           }
         } catch (e) {}
       }
@@ -265,7 +273,7 @@
         const why = want
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.axis} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
-        return `<article class="book">${coverEl(b)}<div><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div><div class="pills">${why}</div>${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}</div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div><div class="pills">${why}</div>${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}</div></article>`;
       }).join("");
       hydrateCovers();
     }
