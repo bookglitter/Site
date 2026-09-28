@@ -68,10 +68,17 @@
       border-radius: 10px; padding: 10px 12px; font-size: .88rem;
     }
     input[type=search] { flex: 1; min-width: 160px; }
+    .actions { display: flex; gap: 8px; margin: 8px 0 10px; }
+    .go, .reset {
+      border-radius: 999px; padding: 13px 20px; cursor: pointer;
+      font-family: system-ui, sans-serif; font-weight: 600;
+    }
     .go {
-      display: block; width: 100%; background: linear-gradient(180deg, var(--purple), var(--purple-2));
-      color: #fff; border: 0; border-radius: 999px; padding: 13px 20px; cursor: pointer;
-      font-family: system-ui, sans-serif; font-weight: 600; margin: 8px 0 10px;
+      flex: 1; background: linear-gradient(180deg, var(--purple), var(--purple-2));
+      color: #fff; border: 0;
+    }
+    .reset {
+      background: transparent; color: var(--silver); border: 1px solid var(--line);
     }
     .hint, .status, .disclosure { font-family: system-ui, sans-serif; color: var(--muted); }
     .hint { font-size: .82rem; margin: 0 0 8px; }
@@ -134,7 +141,10 @@
         </select>
         <select id="q-genre"><option value="">Any subgenre</option></select>
       </div>
-      <button class="go" id="run-quiz" type="button">Find my next book</button>
+      <div class="actions">
+        <button class="reset" id="reset-quiz" type="button">Start over</button>
+        <button class="go" id="run-quiz" type="button">Find my next book</button>
+      </div>
       <p class="hint">Closest sliders first, then higher Goodreads. This is a guide, not a verdict.</p>
     </div>
     <div id="panel-browse" hidden>
@@ -154,7 +164,10 @@
       </div>
       <p class="hint">Tap a cell again to set that slider to any.</p>
       <div class="board" id="browse-board"></div>
-      <button class="go" id="run-browse" type="button">Apply filters</button>
+      <div class="actions">
+        <button class="reset" id="reset-browse" type="button">Start over</button>
+        <button class="go" id="run-browse" type="button">Apply filters</button>
+      </div>
     </div>
     <p class="status" id="status">Loading the library…</p>
     <p class="disclosure">As an Amazon Associate I earn from qualifying purchases.</p>
@@ -294,6 +307,30 @@
         genres.forEach(g => { const o = document.createElement("option"); o.value = g; o.textContent = g; sel.appendChild(o); });
       });
     }
+    function clearResults() {
+      document.getElementById("results").innerHTML = "";
+      document.getElementById("more").hidden = true;
+      browseList = [];
+      browseShown = 0;
+    }
+    document.getElementById("reset-quiz").onclick = () => {
+      state.q = [3,3,3,3,3,3];
+      document.getElementById("q-stand").value = "";
+      document.getElementById("q-genre").value = "";
+      paint("q");
+      clearResults();
+      document.getElementById("status").textContent = "Sliders reset. Pick again.";
+    };
+    document.getElementById("reset-browse").onclick = () => {
+      state.b = [0,0,0,0,0,0];
+      document.getElementById("search").value = "";
+      document.getElementById("b-stand").value = "";
+      document.getElementById("b-genre").value = "";
+      document.getElementById("b-sort").value = "gr";
+      paint("b");
+      clearResults();
+      document.getElementById("status").textContent = "Filters cleared.";
+    };
     document.getElementById("run-quiz").onclick = () => {
       const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
