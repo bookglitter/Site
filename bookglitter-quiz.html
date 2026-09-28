@@ -13,61 +13,99 @@
       --silver: #c9d4e8;
       --purple: #8b7cc8;
       --purple-2: #6d5fb3;
-      --line: rgba(201,212,232,.18);
+      --line: rgba(201,212,232,.22);
       --card: #15283f;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; }
-    body { padding: 24px 16px 64px; }
-    .wrap { max-width: 920px; margin: 0 auto; }
-    h1 { font-weight: 600; letter-spacing: .04em; font-size: 1.8rem; margin: 0 0 .25rem; }
-    .sub { color: var(--muted); font-family: system-ui, sans-serif; font-size: .95rem; margin-bottom: 1.25rem; }
-    .tabs { display: flex; gap: 8px; margin: 18px 0 22px; font-family: system-ui, sans-serif; }
+    body { padding: 16px 12px 48px; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { font-weight: 600; letter-spacing: .03em; font-size: 1.7rem; margin: 0 0 .3rem; }
+    .sub { color: var(--muted); font-family: system-ui, sans-serif; font-size: .9rem; margin: 0 0 1rem; }
+    .tabs { display: flex; gap: 8px; margin: 12px 0 16px; font-family: system-ui, sans-serif; }
     .tab {
       background: transparent; color: var(--silver); border: 1px solid var(--line);
-      padding: 10px 16px; border-radius: 999px; cursor: pointer; font-size: .9rem;
+      padding: 9px 15px; border-radius: 999px; cursor: pointer; font-size: .88rem;
     }
     .tab.on { background: var(--purple-2); border-color: var(--purple); color: #fff; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 8px; margin-bottom: 14px; }
-    .row { margin: 0 0 16px; }
-    .lab { display: flex; justify-content: space-between; gap: 12px; font-family: system-ui, sans-serif; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
-    .lab b { color: var(--ink); font-weight: 600; }
-    input[type=range] { width: 100%; accent-color: var(--purple); }
-    .ends { display: flex; justify-content: space-between; font-family: system-ui, sans-serif; font-size: .72rem; color: var(--muted); }
-    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 16px; font-family: system-ui, sans-serif; }
+    .board { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 8px; overflow-x: auto; }
+    .scale {
+      display: grid;
+      grid-template-columns: 92px repeat(5, minmax(72px, 1fr));
+      gap: 8px;
+      align-items: stretch;
+      margin-bottom: 8px;
+      font-family: system-ui, sans-serif;
+      min-width: 560px;
+    }
+    .scale.head { margin-bottom: 10px; }
+    .scale.head span { text-align: center; color: var(--silver); font-size: .8rem; font-weight: 600; }
+    .scale.head .axis { visibility: hidden; }
+    .axis {
+      display: flex; align-items: center; color: var(--purple); font-size: .68rem;
+      letter-spacing: .06em; font-weight: 700; line-height: 1.15; padding-right: 4px;
+    }
+    .cell {
+      appearance: none; border: 1px solid var(--line); background: var(--navy-2);
+      color: var(--silver); border-radius: 10px; padding: 8px 6px; min-height: 52px;
+      font-family: system-ui, sans-serif; font-size: .72rem; line-height: 1.2;
+      cursor: pointer; text-align: center; position: relative;
+    }
+    .cell::before, .cell::after {
+      content: ""; position: absolute; top: 50%; width: 8px; height: 2px;
+      background: var(--line); transform: translateY(-50%);
+    }
+    .cell::before { left: -8px; }
+    .cell::after { right: -8px; }
+    .scale .cell:nth-child(2)::before { display: none; }
+    .scale .cell:nth-child(6)::after { display: none; }
+    .cell.on {
+      background: var(--purple-2); border-color: var(--purple); color: #fff; font-weight: 600;
+    }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; font-family: system-ui, sans-serif; }
     select, input[type=search] {
       background: var(--navy-2); color: var(--ink); border: 1px solid var(--line);
-      border-radius: 10px; padding: 10px 12px; font-size: .9rem;
+      border-radius: 10px; padding: 10px 12px; font-size: .88rem;
     }
-    input[type=search] { flex: 1; min-width: 180px; }
+    input[type=search] { flex: 1; min-width: 160px; }
     .go {
       display: block; width: 100%; background: linear-gradient(180deg, var(--purple), var(--purple-2));
-      color: #fff; border: 0; border-radius: 999px; padding: 14px 22px; cursor: pointer;
-      font-family: system-ui, sans-serif; font-weight: 600; letter-spacing: .02em;
-      margin: 10px 0 14px;
+      color: #fff; border: 0; border-radius: 999px; padding: 13px 20px; cursor: pointer;
+      font-family: system-ui, sans-serif; font-weight: 600; margin: 8px 0 10px;
     }
-    .go:disabled { opacity: .5; cursor: wait; }
-    .hint { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
-    .results { display: grid; gap: 12px; margin-top: 18px; }
+    .hint, .status, .disclosure { font-family: system-ui, sans-serif; color: var(--muted); }
+    .hint { font-size: .82rem; margin: 0 0 8px; }
+    .status { font-size: .85rem; margin: 12px 0 6px; }
+    .disclosure { font-size: .72rem; font-style: italic; }
+    .results { display: grid; gap: 10px; margin-top: 12px; }
     .book {
-      background: var(--navy-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+      display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start;
+      background: var(--navy-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
       font-family: system-ui, sans-serif;
     }
-    .book h3 { font-family: Georgia, serif; margin: 0 0 4px; font-size: 1.15rem; }
-    .meta { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
-    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-    .pill { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--silver); }
-    .why { font-size: .82rem; color: var(--silver); }
-    .book a { color: var(--purple); text-decoration: none; font-size: .85rem; }
+    .cover { width: 56px; height: 84px; border-radius: 4px; object-fit: cover; background: #1a2c44; display: block; }
+    .cover.ph {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--silver); font-family: Georgia, serif; font-size: 1.2rem;
+    }
+    .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
+    .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
+    .pill { font-size: .68rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--silver); }
+    .book a { color: var(--purple); text-decoration: none; font-size: .82rem; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
-    .status { font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem; }
-    .disclosure { font-family: system-ui, sans-serif; color: var(--muted); font-size: .75rem; font-style: italic; margin: 6px 0 0; }
     .more {
-      display: block; margin: 16px auto 0; background: transparent; color: var(--silver);
-      border: 1px solid var(--line); border-radius: 999px; padding: 10px 20px; cursor: pointer;
-      font-family: system-ui, sans-serif; font-size: .9rem;
+      display: block; margin: 14px auto 0; background: transparent; color: var(--silver);
+      border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+      font-family: system-ui, sans-serif;
     }
     .more[hidden] { display: none; }
+    @media (min-width: 720px) {
+      .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
+      .cell { min-height: 58px; font-size: .78rem; }
+      .book { grid-template-columns: 72px 1fr; }
+      .cover { width: 72px; height: 108px; }
+    }
   </style>
 </head>
 <body>
@@ -78,9 +116,8 @@
       <button class="tab on" id="tab-quiz" type="button">Quiz</button>
       <button class="tab" id="tab-browse" type="button">Browse &amp; filter</button>
     </div>
-
     <div id="panel-quiz">
-      <div class="card" id="quiz-sliders"></div>
+      <div class="board" id="quiz-board"></div>
       <div class="filters">
         <select id="q-stand">
           <option value="">Standalone or series</option>
@@ -90,9 +127,8 @@
         <select id="q-genre"><option value="">Any subgenre</option></select>
       </div>
       <button class="go" id="run-quiz" type="button">Find my next book</button>
-      <p class="hint">Match is closest sliders first, then higher Goodreads as the tie-break. This is a guide, not a verdict.</p>
+      <p class="hint">Closest sliders first, then higher Goodreads. This is a guide, not a verdict.</p>
     </div>
-
     <div id="panel-browse" hidden>
       <div class="filters">
         <input type="search" id="search" placeholder="Search title or author" />
@@ -109,74 +145,71 @@
         </select>
       </div>
       <button class="go" id="run-browse" type="button">Apply filters</button>
-      <p class="hint">Leave a slider on “any” to ignore it. Move one only if you care about that slider.</p>
-      <div class="card" id="browse-sliders"></div>
+      <p class="hint">Tap a cell again to set that slider to any.</p>
+      <div class="board" id="browse-board"></div>
     </div>
-
     <p class="status" id="status">Loading the library…</p>
-    <p class="disclosure">As an Amazon Associate I earn from qualifying purchases. Buying through these links supports Book Glitter at no extra cost to you.</p>
+    <p class="disclosure">As an Amazon Associate I earn from qualifying purchases.</p>
     <div class="results" id="results"></div>
     <button class="more" id="more" type="button" hidden>Show more books</button>
   </div>
-
   <script>
-    /* ========= CONFIG =========
-       1) Easiest now: keep books.json next to this file.
-       2) Live sheet: deploy the Apps Script in bookglitter-apps-script.js
-          and paste the web-app URL below as DATA_URL.
-    */
     const DATA_URL = "https://script.google.com/macros/s/AKfycbwus_NfqGeDSLYG-GKFxnL0OGa-VzWZ-Z23vOH0mWIxgNbLpf_Bxg6gO4KkvswvUE5ZPw/exec";
-
-    /* Amazon Associates tracking ID — added to every Amazon link at render time. */
     const AMAZON_TAG = "bookglitter-20";
-
+    const PAGE_SIZE = 30;
+    const coverCache = {};
+    const SLIDERS = [
+      { axis: "ROMANCE", cells: ["Side plot", "Some romance", "Even mix", "Romance leads", "The point"] },
+      { axis: "LIGHT–DARK", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
+      { axis: "SERIES", cells: ["Standalone", "Duology", "Short series", "Long series", "Huge series"] },
+      { axis: "DOOR", cells: ["Camera leaves", "Fade to black", "Some on-page", "Open door", "Explicit"] },
+      { axis: "QUEST–COURT", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
+      { axis: "REREAD", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
+    ];
+    const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0] };
+    let BOOKS = [];
+    let browseList = [];
+    let browseShown = 0;
     function affUrl(u) {
       try {
         const url = new URL(u);
         if (/(^|\.)amazon\./i.test(url.hostname)) url.searchParams.set("tag", AMAZON_TAG);
         return url.toString();
-      } catch (e) {
-        return u;
-      }
+      } catch (e) { return u; }
     }
-
-    const PAGE_SIZE = 30;
-    let browseList = [];
-    let browseShown = 0;
-
-    const SLIDERS = [
-      { key: 0, left: "Romance is a side plot", right: "Romance is the point" },
-      { key: 1, left: "Light", right: "Dark" },
-      { key: 2, left: "One book", right: "Long series" },
-      { key: 3, left: "Closed door", right: "Open door" },
-      { key: 4, left: "Quest", right: "Court" },
-      { key: 5, left: "Read once", right: "Read again" }
-    ];
-
-    let BOOKS = [];
-
-    function sliderHTML(prefix, start) {
-      return SLIDERS.map((s, i) => `
-        <div class="row">
-          <div class="lab"><span>${s.left}</span><b id="${prefix}-val-${i}">${start}</b><span>${s.right}</span></div>
-          <input type="range" min="${start === 0 ? 0 : 1}" max="5" step="1" value="${start}" id="${prefix}-${i}" />
-          <div class="ends"><span>1</span><span>5</span></div>
+    function boardHTML(prefix) {
+      const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`;
+      const rows = SLIDERS.map((s, i) => `
+        <div class="scale" data-prefix="${prefix}" data-i="${i}">
+          <div class="axis">${s.axis}</div>
+          ${s.cells.map((label, n) => `<button type="button" class="cell" data-n="${n+1}">${label}</button>`).join("")}
         </div>`).join("");
+      return head + rows;
     }
-
-    document.getElementById("quiz-sliders").innerHTML = sliderHTML("q", 3);
-    document.getElementById("browse-sliders").innerHTML = sliderHTML("b", 0);
-
-    function bindVals(prefix) {
+    document.getElementById("quiz-board").innerHTML = boardHTML("q");
+    document.getElementById("browse-board").innerHTML = boardHTML("b");
+    function paint(prefix) {
       SLIDERS.forEach((_, i) => {
-        const el = document.getElementById(`${prefix}-${i}`);
-        const lab = document.getElementById(`${prefix}-val-${i}`);
-        const paint = () => { lab.textContent = el.value === "0" ? "any" : el.value; };
-        el.addEventListener("input", paint); paint();
+        const row = document.querySelector(`.scale[data-prefix="${prefix}"][data-i="${i}"]`);
+        const val = state[prefix][i];
+        row.querySelectorAll(".cell").forEach(btn => {
+          btn.classList.toggle("on", Number(btn.dataset.n) === val);
+        });
       });
     }
-    bindVals("q"); bindVals("b");
-
+    document.querySelectorAll(".scale[data-prefix]").forEach(row => {
+      const prefix = row.dataset.prefix;
+      const i = Number(row.dataset.i);
+      row.querySelectorAll(".cell").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const n = Number(btn.dataset.n);
+          if (prefix === "b" && state.b[i] === n) state.b[i] = 0;
+          else state[prefix][i] = n;
+          paint(prefix);
+        });
+      });
+    });
+    paint("q"); paint("b");
     document.getElementById("tab-quiz").onclick = () => show("quiz");
     document.getElementById("tab-browse").onclick = () => show("browse");
     function show(which) {
@@ -189,22 +222,40 @@
     }
     const startView = new URLSearchParams(location.search).get("view");
     if (startView === "library" || startView === "browse") show("browse");
-
-    function readSliders(prefix) {
-      return SLIDERS.map((_, i) => Number(document.getElementById(`${prefix}-${i}`).value));
-    }
-
     function distance(book, want) {
-      let d = 0, used = 0;
-      want.forEach((v, i) => {
-        if (!v) return;
-        d += Math.abs((book.r[i] || 3) - v);
-        used += 1;
-      });
-      return { d, used };
+      let d = 0;
+      want.forEach((v, i) => { if (v) d += Math.abs((book.r[i] || 3) - v); });
+      return d;
     }
-
-    function render(list, want, mode) {
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+    function coverEl(b) {
+      const key = `${b.t}|${b.a}`;
+      return `<img class="cover" alt="" data-cover="${escapeHtml(key)}" hidden /><div class="cover ph" data-ph="${escapeHtml(key)}">${escapeHtml((b.t || "?").charAt(0))}</div>`;
+    }
+    async function hydrateCovers() {
+      for (const img of document.querySelectorAll("img[data-cover]")) {
+        const key = img.dataset.cover;
+        const [t, a] = key.split("|");
+        try {
+          if (coverCache[key] === undefined) {
+            const q = `intitle:${encodeURIComponent(t)}+inauthor:${encodeURIComponent(a)}`;
+            const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo/imageLinks/thumbnail)`);
+            const data = await res.json();
+            const thumb = data.items && data.items[0] && data.items[0].volumeInfo && data.items[0].volumeInfo.imageLinks && data.items[0].volumeInfo.imageLinks.thumbnail;
+            coverCache[key] = thumb ? thumb.replace("http://", "https://") : "";
+          }
+          if (coverCache[key]) {
+            img.src = coverCache[key];
+            img.hidden = false;
+            const ph = document.querySelector(`[data-ph="${CSS.escape(key)}"]`);
+            if (ph) ph.remove();
+          }
+        } catch (e) {}
+      }
+    }
+    function render(list, want) {
       const box = document.getElementById("results");
       if (!list.length) {
         box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
@@ -212,59 +263,34 @@
       }
       box.innerHTML = list.map(b => {
         const why = want
-          ? SLIDERS.map((s, i) => {
-              if (!want[i]) return "";
-              const hit = Math.abs((b.r[i] || 3) - want[i]) <= 1;
-              return hit ? `<span class="pill">${s.right.split(" ").slice(-2).join(" ")} ${b.r[i]}</span>` : "";
-            }).join("")
-          : `<span class="pill">${b.g}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
-        return `<article class="book">
-          <h3>${escapeHtml(b.t)}</h3>
-          <div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g)}${b.y ? " · " + b.y : ""} · GR ${b.gr.toFixed(2)}</div>
-          <div class="pills">${why}</div>
-          ${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}
-        </article>`;
+          ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.axis} ${b.r[i]}</span>`).join("")
+          : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
+        return `<article class="book">${coverEl(b)}<div><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div><div class="pills">${why}</div>${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}</div></article>`;
       }).join("");
+      hydrateCovers();
     }
-
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
-    }
-
     function fillGenres() {
       const genres = [...new Set(BOOKS.map(b => b.g).filter(Boolean))].sort();
       ["q-genre", "b-genre"].forEach(id => {
         const sel = document.getElementById(id);
-        genres.forEach(g => {
-          const o = document.createElement("option");
-          o.value = g; o.textContent = g; sel.appendChild(o);
-        });
+        genres.forEach(g => { const o = document.createElement("option"); o.value = g; o.textContent = g; sel.appendChild(o); });
       });
     }
-
     document.getElementById("run-quiz").onclick = () => {
-      const want = readSliders("q");
+      const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
-      const scored = BOOKS
-        .filter(b => !stand || b.s === stand)
-        .filter(b => !genre || b.g === genre)
-        .map(b => {
-          const { d, used } = distance(b, want);
-          return { b, d, used, gr: b.gr };
-        })
-        .sort((a, c) => a.d - c.d || c.gr - a.gr)
-        .slice(0, 12);
+      const scored = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre)
+        .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+        .sort((a, c) => a.d - c.d || c.gr - a.gr).slice(0, 12);
       document.getElementById("status").textContent = `12 closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
-      render(scored.map(x => x.b), want, "quiz");
+      render(scored.map(x => x.b), want);
     };
-
     document.getElementById("run-browse").onclick = runBrowse;
     document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
-
     function runBrowse() {
-      const want = readSliders("b");
+      const want = state.b.slice();
       const stand = document.getElementById("b-stand").value;
       const genre = document.getElementById("b-genre").value;
       const q = document.getElementById("search").value.trim().toLowerCase();
@@ -273,29 +299,24 @@
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
         if (q && !(`${b.t} ${b.a}`.toLowerCase().includes(q))) return false;
-        /* Within 1 point counts as a match, so in-between slider values still return books. */
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
       });
-      if (sort === "gr") list.sort((a, b) => b.gr - a.gr);
+      if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
       if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
       browseList = list;
       browseShown = Math.min(PAGE_SIZE, list.length);
       showBrowse();
     }
-
     function showBrowse() {
-      document.getElementById("status").textContent =
-        `${browseList.length} books. Showing ${browseShown}.`;
-      render(browseList.slice(0, browseShown), null, "browse");
+      document.getElementById("status").textContent = `${browseList.length} books. Showing ${browseShown}.`;
+      render(browseList.slice(0, browseShown), null);
       document.getElementById("more").hidden = browseShown >= browseList.length;
     }
-
     document.getElementById("more").onclick = () => {
       browseShown = Math.min(browseShown + PAGE_SIZE, browseList.length);
       showBrowse();
     };
-
     async function load() {
       const status = document.getElementById("status");
       try {
@@ -306,8 +327,7 @@
         fillGenres();
         status.textContent = `${BOOKS.length} books loaded. Set the sliders and go.`;
       } catch (err) {
-        status.innerHTML = `<span class="err">Could not load the library from ${DATA_URL}. Upload bookglitter-books.json next to this page, or paste your Apps Script web-app URL into DATA_URL.</span>`;
-        console.error(err);
+        status.innerHTML = `<span class="err">Could not load the library.</span>`;
       }
     }
     load();
