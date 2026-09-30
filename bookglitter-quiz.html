@@ -172,7 +172,12 @@
     .book a.title-link {
       color: var(--ink); font-size: inherit; font-family: inherit; font-weight: inherit;
     }
-    .book a.title-link:hover { color: var(--purple); }
+    .book a.title-link .shop-hint {
+      display: inline-block; margin-left: 6px;
+      font: 600 0.68rem system-ui, sans-serif;
+      color: var(--muted); letter-spacing: 0.02em;
+    }
+    .book a.title-link:hover .shop-hint { color: var(--purple); }
     .share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .share-row a, .share-row button {
       background: transparent; color: var(--silver); border: 1px solid var(--line);
@@ -355,6 +360,7 @@
       const feat = encodeURIComponent(b.t || "");
       const r = (b.r || []).filter(n => n >= 1 && n <= 5).join(",");
       let url = `https://www.bookglitter.com/quiz?view=library&feat=${feat}`;
+      if (b.a) url += `&a=${encodeURIComponent(b.a)}`;
       if (r.split(",").length === 6) url += `&r=${r}&exact=1`;
       return url;
     }
@@ -499,8 +505,11 @@
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
       const feat = (params.get("feat") || "").trim().toLowerCase();
+      const featAuthor = (params.get("a") || "").trim().toLowerCase();
       if (feat && BOOKS.length) {
-        const book = BOOKS.find(b => (b.t || "").toLowerCase() === feat)
+        const named = BOOKS.filter(b => (b.t || "").toLowerCase() === feat);
+        const book = (featAuthor && named.find(b => (b.a || "").toLowerCase() === featAuthor))
+          || named[0]
           || BOOKS.find(b => (b.t || "").toLowerCase().includes(feat));
         if (book) {
           moreLike(book);
@@ -658,7 +667,7 @@
         const seriesLine = series
           ? `<a class="series-line" href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(series)}</a>`
           : "";
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}</a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
