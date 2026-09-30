@@ -510,6 +510,30 @@
       if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
       if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
+      const feat = (new URLSearchParams(location.search).get("feat") || "").trim().toLowerCase();
+      if (feat) {
+        list.sort((a, b) => {
+          const af = (a.t || "").trim().toLowerCase() === feat;
+          const bf = (b.t || "").trim().toLowerCase() === feat;
+          if (af && !bf) return -1;
+          if (bf && !af) return 1;
+          const author = (a.a || "").localeCompare(b.a || "");
+          if (author) return author;
+          const as = (a.sn || "").trim();
+          const bs = (b.sn || "").trim();
+          if (!as && !bs) return (a.t || "").localeCompare(b.t || "");
+          if (!as && bs) return -1;
+          if (as && !bs) return 1;
+          const series = as.localeCompare(bs);
+          if (series) return series;
+          const an = parseFloat(a.n);
+          const bn = parseFloat(b.n);
+          const av = Number.isFinite(an) ? an : 0;
+          const bv = Number.isFinite(bn) ? bn : 0;
+          if (av !== bv) return av - bv;
+          return (a.t || "").localeCompare(b.t || "");
+        });
+      }
       browseList = list;
       browseShown = Math.min(PAGE_SIZE, list.length);
       showBrowse();
