@@ -298,7 +298,7 @@
   <div class="share-modal" id="share-modal" hidden>
     <div class="share-card">
       <h2>Edit before you post</h2>
-      <p>Change the caption. The Amazon link stays attached so people can grab the book.</p>
+      <p>Change the caption. The Book Glitter link stays attached so people land on this book.</p>
       <textarea id="share-text"></textarea>
       <div class="link" id="share-link"></div>
       <div class="share-actions">
@@ -344,6 +344,13 @@
         return url.toString();
       } catch (e) { return u; }
     }
+    function bookSiteUrl(b) {
+      const feat = encodeURIComponent(b.t || "");
+      const r = (b.r || []).filter(n => n >= 1 && n <= 5).join(",");
+      let url = `https://www.bookglitter.com/quiz?view=library&feat=${feat}`;
+      if (r.split(",").length === 6) url += `&r=${r}&exact=1`;
+      return url;
+    }
     function bookAmazon(b) {
       const raw = b.u || `https://www.amazon.com/s?k=${encodeURIComponent((b.t || "") + " " + (b.a || ""))}`;
       return affUrl(raw);
@@ -365,7 +372,7 @@
     function startCaption(b) {
       const series = seriesLabel(b);
       const extra = series ? `\n${series}` : "";
-      return `Starting ${b.t} by ${b.a}${extra}`;
+      return `Starting ${b.t} by ${b.a}${extra}\nFind it on Book Glitter`;
     }
     function boardHTML(prefix) {
       const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`;
@@ -483,11 +490,19 @@
       return parts;
     }
     function applyDeepLink() {
+      const params = new URLSearchParams(location.search);
+      const feat = (params.get("feat") || "").trim().toLowerCase();
+      if (feat && BOOKS.length) {
+        const book = BOOKS.find(b => (b.t || "").toLowerCase() === feat)
+          || BOOKS.find(b => (b.t || "").toLowerCase().includes(feat));
+        if (book) {
+          moreLike(book);
+          return true;
+        }
+      }
       const sliders = parseSliderParam();
       if (!sliders || !BOOKS.length) return false;
-      const params = new URLSearchParams(location.search);
       const exact = params.get("exact") === "1";
-      const feat = (params.get("feat") || "").trim();
       const view = params.get("view") || "";
       const quizLink = params.get("tab") === "quiz" || (view !== "library" && view !== "browse" && !exact && !feat);
       if (quizLink && !exact && !feat) {
@@ -629,13 +644,14 @@
           ? (/^(the|a|an)\s/i.test(seriesName) ? `Browse ${escapeHtml(seriesName)}` : `Browse the ${escapeHtml(seriesName)} series`)
           : `More by ${escapeHtml(b.a || "this author")}`;
         const series = seriesLabel(b);
+        const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
         const seriesHref = seriesAmazon(b);
         const secondLabel = seriesBrowse;
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
-          : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
+          : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(siteHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
         return `<article class="book">${coverEl(b)}<div class="info"><div class="title-row"><h3>${escapeHtml(b.t)}</h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${why ? `<div class="pills">${why}</div>` : ""}<div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div>${shareRow}</div></article>`;
       }).join("");
     }
