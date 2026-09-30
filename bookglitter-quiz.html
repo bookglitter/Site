@@ -216,6 +216,9 @@
       <div class="link" id="share-link"></div>
       <div class="share-actions">
         <button type="button" class="primary" id="share-x">Post on X</button>
+        <button type="button" id="share-fb">Share on Facebook</button>
+        <button type="button" id="share-ig">Share on Instagram</button>
+        <button type="button" id="share-gr">Share on Goodreads</button>
         <button type="button" id="share-native">Share sheet</button>
         <button type="button" id="share-copy">Copy caption + link</button>
         <button type="button" id="share-close">Close</button>
@@ -374,7 +377,7 @@
           ? `Browse the ${escapeHtml((b.sn || "").trim())} series`
           : `More by ${escapeHtml(b.a || "this author")}`;
         const caption = startCaption(b);
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}">Share this read</button></div></div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
       hydrateCovers();
     }
@@ -457,10 +460,12 @@
       shareModal.classList.remove("on");
       shareModal.hidden = true;
     }
-    function openShare(caption, url) {
+    function openShare(caption, url, title, author) {
       shareText.value = caption;
       shareLink.textContent = url;
       shareLink.dataset.url = url;
+      shareLink.dataset.title = title || "";
+      shareLink.dataset.author = author || "";
       shareModal.hidden = false;
       shareModal.classList.add("on");
       shareText.focus();
@@ -468,7 +473,7 @@
     document.getElementById("results").addEventListener("click", (e) => {
       const btn = e.target.closest(".share-open");
       if (!btn) return;
-      openShare(btn.dataset.caption || "", btn.dataset.url || "");
+      openShare(btn.dataset.caption || "", btn.dataset.url || "", btn.dataset.title || "", btn.dataset.author || "");
     });
     document.getElementById("share-close").onclick = closeShare;
     shareModal.addEventListener("click", (e) => { if (e.target === shareModal) closeShare(); });
@@ -477,6 +482,20 @@
       const url = shareLink.dataset.url || "";
       const href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
       window.open(href, "_blank", "noopener");
+    };
+    document.getElementById("share-fb").onclick = () => {
+      const url = shareLink.dataset.url || "";
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener");
+    };
+    document.getElementById("share-ig").onclick = async () => {
+      const text = shareText.value.trim();
+      const url = shareLink.dataset.url || "";
+      try { await navigator.clipboard.writeText(`${text}\n${url}`); } catch (err) {}
+      window.open("https://www.instagram.com/", "_blank", "noopener");
+    };
+    document.getElementById("share-gr").onclick = () => {
+      const q = `${shareLink.dataset.title || ""} ${shareLink.dataset.author || ""}`.trim();
+      window.open(`https://www.goodreads.com/search?q=${encodeURIComponent(q)}`, "_blank", "noopener");
     };
     document.getElementById("share-native").onclick = async () => {
       const text = shareText.value.trim();
