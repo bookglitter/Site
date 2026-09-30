@@ -122,7 +122,8 @@
     .cover-wrap img.show { display: block; }
     .cover-wrap .ph {
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      color: var(--silver); font-family: Georgia, serif; font-size: 1.2rem;
+      color: var(--silver); font-family: system-ui, sans-serif; font-size: .62rem;
+      text-align: center; line-height: 1.2; padding: 6px;
     }
     .cover-wrap.has-img .ph { display: none; }
     .book .info { flex: 1; min-width: 0; padding-right: 72px; }
@@ -453,7 +454,18 @@
     function applyDeepLink() {
       const sliders = parseSliderParam();
       if (!sliders || !BOOKS.length) return false;
-      const exact = new URLSearchParams(location.search).get("exact") === "1";
+      const params = new URLSearchParams(location.search);
+      const exact = params.get("exact") === "1";
+      const feat = (params.get("feat") || "").trim();
+      const view = params.get("view") || "";
+      const quizLink = params.get("tab") === "quiz" || (view !== "library" && view !== "browse" && !exact && !feat);
+      if (quizLink && !exact && !feat) {
+        state.q = sliders.slice();
+        paint("q");
+        show("quiz");
+        document.getElementById("run-quiz").click();
+        return true;
+      }
       state.b = sliders.slice();
       state.exact = exact;
       paint("b");
@@ -464,6 +476,14 @@
         ? "Exact slider matches for this title."
         : "Showing books with sliders like this title.";
       return true;
+    }
+    function writeQuizLink() {
+      const url = new URL(location.href);
+      url.searchParams.set("r", state.q.join(","));
+      url.searchParams.set("tab", "quiz");
+      url.searchParams.delete("exact");
+      url.searchParams.delete("feat");
+      history.replaceState({}, "", url.pathname + url.search);
     }
     function distance(book, want) {
       let d = 0;
@@ -490,7 +510,7 @@
         return `<div class="cover-wrap has-img"><img class="show" alt="" src="${escapeHtml(stored)}" /></div>`;
       }
       const key = coverKey(b.t, b.a);
-      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
+      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">Coming soon</span><img alt="" /></div>`;
     }
     function matchPct(book, want) {
       if (!want || !want.some(v => v)) return null;
@@ -657,8 +677,11 @@
         ? (filteredOut
           ? "No books in that standalone/subgenre filter. 10 closest across the library instead."
           : "Nothing sits on those exact sliders. 10 closest instead.")
+        : want.every(v => v === 3)
+        ? `${scored.length} closest to the sliders you left in the middle.`
         : `${scored.length} closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
+      writeQuizLink();
       render(scored.map(x => x.b), want, "quiz");
       document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
