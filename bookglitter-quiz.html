@@ -28,23 +28,27 @@
       padding: 9px 15px; border-radius: 999px; cursor: pointer; font-size: .88rem;
     }
     .tab.on { background: var(--purple-2); border-color: var(--purple); color: #fff; }
-    .board { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 8px; overflow-x: auto; }
+    .board { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .scale {
       display: grid;
-      grid-template-columns: 92px repeat(5, minmax(72px, 1fr));
+      grid-template-columns: 88px repeat(5, minmax(64px, 1fr));
       gap: 8px;
       align-items: stretch;
       margin-bottom: 8px;
       font-family: system-ui, sans-serif;
-      min-width: 560px;
+      min-width: 520px;
     }
     .scale.head { margin-bottom: 10px; }
     .scale.head span { text-align: center; color: var(--silver); font-size: .8rem; font-weight: 600; }
     .scale.head .axis { visibility: hidden; }
     .axis {
       display: flex; align-items: center; color: var(--purple); font-size: .68rem;
-      letter-spacing: .06em; font-weight: 700; line-height: 1.15; padding-right: 4px;
+      letter-spacing: .06em; font-weight: 700; line-height: 1.15; padding-right: 8px;
+      position: sticky; left: 0; z-index: 2;
+      background: var(--card);
+      box-shadow: 8px 0 10px -8px rgba(0,0,0,.55);
     }
+    .scale.head .axis { background: var(--card); }
     .cell {
       appearance: none; border: 1px solid var(--line); background: var(--navy-2);
       color: var(--silver); border-radius: 10px; padding: 8px 6px; min-height: 52px;
@@ -229,7 +233,8 @@
         <button class="reset" id="reset-quiz" type="button">Start over</button>
         <button class="go" id="run-quiz" type="button">Find my next book</button>
       </div>
-      <p class="hint">START / WAIT / SKIP is how close the book is to your sliders, then higher Goodreads. Not a personal review of every title.</p>
+      <p class="hint">Quiz = pick a vibe. Browse = search a title you liked.</p>
+      <p class="hint">The chip is closeness to your sliders, not a review.</p>
     </div>
     <div id="panel-browse" hidden>
       <div class="filters">
@@ -545,9 +550,11 @@
     function gemsCard() {
       return `<div class="gems"><p>Save this vibe. One email after each Sunday video, with books that sit on sliders like these.</p><a href="https://www.bookglitter.com/newsletter">Join Book Glitter Gems</a></div>`;
     }
-    function renderList(list, want) {
+    function renderList(list, want, mode) {
       return list.map(b => {
-        const why = want
+        const why = (mode === "quiz")
+          ? ""
+          : want
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
         const verdict = verdictFor(b, want);
@@ -569,17 +576,17 @@
         const seriesHref = seriesAmazon(b);
         const secondLabel = seriesBrowse;
         const caption = startCaption(b);
-        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${why ? `<div class="pills">${why}</div>` : ""}<div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
     }
-    function render(list, want) {
+    function render(list, want, mode) {
       coverGen += 1;
       const box = document.getElementById("results");
       if (!list.length) {
         box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
         return;
       }
-      box.innerHTML = renderList(list, want);
+      box.innerHTML = renderList(list, want, mode);
       hydrateCovers();
     }
     function fillGenres() {
@@ -652,8 +659,9 @@
           : "Nothing sits on those exact sliders. 10 closest instead.")
         : `${scored.length} closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
-      render(scored.map(x => x.b), want);
+      render(scored.map(x => x.b), want, "quiz");
       document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
+      document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
     };
     document.getElementById("run-browse").onclick = runBrowse;
     document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
