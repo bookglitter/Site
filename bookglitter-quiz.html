@@ -110,6 +110,12 @@
     .pill { font-size: .68rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--silver); }
     .book a { color: var(--purple); text-decoration: none; font-size: .82rem; }
     .links { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 2px; }
+    .share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .share-row a, .share-row button {
+      background: transparent; color: var(--silver); border: 1px solid var(--line);
+      border-radius: 999px; padding: 6px 10px; font-size: .75rem; cursor: pointer;
+      font-family: system-ui, sans-serif; text-decoration: none;
+    }
     .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .more {
@@ -218,6 +224,12 @@
       const num = b.n === 0 || b.n ? String(b.n).replace(/\.0$/, "") : "";
       return num ? `${series} · Book ${num}` : series;
     }
+    function startCaption(b) {
+      const book = bookAmazon(b);
+      const series = seriesLabel(b);
+      const line2 = series ? ` (${series})` : "";
+      return `I'm starting ${b.t} by ${b.a}${line2}. ${book} Found it with Book Glitter: https://www.bookglitter.com/library`;
+    }
     function boardHTML(prefix) {
       const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`;
       const rows = SLIDERS.map((s, i) => `
@@ -322,7 +334,10 @@
         const secondLabel = (b.sn || "").trim()
           ? `Browse the ${escapeHtml((b.sn || "").trim())} series`
           : `More by ${escapeHtml(b.a || "this author")}`;
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div></div></article>`;
+        const caption = startCaption(b);
+        const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`;
+        const fbHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(bookHref)}`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-native" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}">Share I'm starting this</button><a href="${escapeHtml(xHref)}" target="_blank" rel="noopener">Post on X</a><a href="${escapeHtml(fbHref)}" target="_blank" rel="noopener">Share on Facebook</a><button type="button" class="share-copy" data-caption="${escapeHtml(caption)}">Copy caption</button></div></div></article>`;
       }).join("");
       hydrateCovers();
     }
@@ -398,6 +413,32 @@
       browseShown = Math.min(browseShown + PAGE_SIZE, browseList.length);
       showBrowse();
     };
+    document.getElementById("results").addEventListener("click", async (e) => {
+      const copyBtn = e.target.closest(".share-copy");
+      const shareBtn = e.target.closest(".share-native");
+      if (copyBtn) {
+        try {
+          await navigator.clipboard.writeText(copyBtn.dataset.caption || "");
+          copyBtn.textContent = "Copied";
+          setTimeout(() => { copyBtn.textContent = "Copy caption"; }, 1500);
+        } catch (err) {}
+      }
+      if (shareBtn && navigator.share) {
+        try {
+          await navigator.share({
+            title: "I'm starting this next",
+            text: shareBtn.dataset.caption,
+            url: shareBtn.dataset.url
+          });
+        } catch (err) {}
+      } else if (shareBtn) {
+        try {
+          await navigator.clipboard.writeText(shareBtn.dataset.caption || "");
+          shareBtn.textContent = "Caption copied";
+          setTimeout(() => { shareBtn.textContent = "Share I'm starting this"; }, 1500);
+        } catch (err) {}
+      }
+    });
     async function load() {
       const status = document.getElementById("status");
       try {
