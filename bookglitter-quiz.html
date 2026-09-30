@@ -44,9 +44,7 @@
     .axis {
       display: flex; align-items: center; color: var(--purple); font-size: .68rem;
       letter-spacing: .06em; font-weight: 700; line-height: 1.15; padding-right: 8px;
-      position: sticky; left: 0; z-index: 2;
       background: var(--card);
-      box-shadow: 8px 0 10px -8px rgba(0,0,0,.55);
     }
     .scale.head .axis { background: var(--card); }
     .cell {
@@ -65,6 +63,30 @@
     .scale .cell:nth-child(6)::after { display: none; }
     .cell.on {
       background: var(--purple-2); border-color: var(--purple); color: #fff; font-weight: 600;
+    }
+    @media (min-width: 721px) {
+      .axis {
+        position: sticky; left: 0; z-index: 2;
+        box-shadow: 8px 0 10px -8px rgba(0,0,0,.55);
+      }
+    }
+    @media (max-width: 720px) {
+      .board { overflow-x: visible; }
+      .scale {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        min-width: 0;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .axis {
+        grid-column: 1 / -1;
+        position: static;
+        box-shadow: none;
+        padding: 2px 0 4px;
+      }
+      .scale.head .axis { display: none; }
+      .cell { min-height: 46px; font-size: .66rem; padding: 6px 3px; }
+      .cell::before, .cell::after { display: none; }
     }
     .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; font-family: system-ui, sans-serif; }
     select, input[type=search] {
@@ -95,7 +117,6 @@
       font-family: system-ui, sans-serif;
     }
     .match {
-      position: absolute; top: 10px; right: 10px;
       display: inline-flex; align-items: center; gap: 6px;
       font: 700 11px system-ui, sans-serif;
       color: #efe8ff;
@@ -105,7 +126,13 @@
       padding: 4px 8px 4px 4px;
       letter-spacing: 0.02em;
       white-space: nowrap;
+      flex: 0 0 auto;
     }
+    .title-row {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+      margin: 0 0 3px; flex-wrap: wrap;
+    }
+    .book h3 { font-family: Georgia, serif; margin: 0; font-size: 1.02rem; flex: 1; min-width: 0; }
     .match .bucket {
       border-radius: 999px; padding: 2px 7px; letter-spacing: .06em;
     }
@@ -126,8 +153,7 @@
       text-align: center; line-height: 1.2; padding: 6px;
     }
     .cover-wrap.has-img .ph { display: none; }
-    .book .info { flex: 1; min-width: 0; padding-right: 72px; }
-    .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
+    .book .info { flex: 1; min-width: 0; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
     .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; align-items: center; }
     .pill { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--silver); }
@@ -610,7 +636,7 @@
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
           : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
-        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${why ? `<div class="pills">${why}</div>` : ""}<div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div>${shareRow}</div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><div class="title-row"><h3>${escapeHtml(b.t)}</h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${why ? `<div class="pills">${why}</div>` : ""}<div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div>${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
