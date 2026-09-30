@@ -266,6 +266,9 @@
     ];
     const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], l: [0,0,0,0,0,0], exact: false };
     let seedBook = null;
+    let likeClose = [];
+    let likeShown = 0;
+    let likeWant = null;
     let BOOKS = [];
     let browseList = [];
     let browseShown = 0;
@@ -383,19 +386,20 @@
     function runLike() {
       if (!seedBook) return;
       const want = (seedBook.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
+      likeWant = want;
       const exact = BOOKS.filter(b => sameSliders(b, seedBook)).sort(bookSort);
       exact.sort((a, b) => {
         if (a.t === seedBook.t && a.a === seedBook.a) return -1;
         if (b.t === seedBook.t && b.a === seedBook.a) return 1;
         return bookSort(a, b);
       });
-      const close = BOOKS.filter(b => !sameSliders(b, seedBook) && withinOne(b, want))
-        .sort((a, b) => (b.gr || 0) - (a.gr || 0) || bookSort(a, b))
-        .slice(0, 10);
-      const exactShow = exact.filter(b => !(b.t === seedBook.t && b.a === seedBook.a)).slice(0, 10);
+      likeClose = BOOKS.filter(b => !sameSliders(b, seedBook) && withinOne(b, want))
+        .sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
+      likeShown = Math.min(PAGE_SIZE, likeClose.length);
+      const exactShow = exact.filter(b => !(b.t === seedBook.t && b.a === seedBook.a));
       document.getElementById("status").textContent =
-        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${close.length} close seconds.`;
-      document.getElementById("more").hidden = true;
+        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} close seconds. Showing ${likeShown}.`;
+      document.getElementById("more").hidden = likeShown >= likeClose.length;
       const box = document.getElementById("results");
       box.innerHTML = gemsCard() +
         `<h2>This book</h2>` +
@@ -403,7 +407,7 @@
         `<h2>Exact slider matches</h2>` +
         (exactShow.length ? renderList(exactShow, want) : `<p class="hint">No other title shares all six numbers.</p>`) +
         `<h2>Close seconds</h2>` +
-        (close.length ? renderList(close, want) : `<p class="hint">No close seconds in the library yet.</p>`);
+        (likeClose.length ? renderList(likeClose.slice(0, likeShown), want) : `<p class="hint">No close seconds in the library yet.</p>`);
       hydrateCovers();
     }
 
@@ -546,6 +550,9 @@
       document.getElementById("more").hidden = true;
       browseList = [];
       browseShown = 0;
+      likeClose = [];
+      likeShown = 0;
+      seedBook = null;
     }
     document.getElementById("reset-quiz").onclick = () => {
       state.q = [3,3,3,3,3,3];
@@ -629,6 +636,19 @@
       document.getElementById("more").hidden = browseShown >= browseList.length;
     }
     document.getElementById("more").onclick = () => {
+      if (seedBook && likeClose.length) {
+        const start = likeShown;
+        likeShown = Math.min(likeShown + PAGE_SIZE, likeClose.length);
+        document.getElementById("results").insertAdjacentHTML(
+          "beforeend",
+          renderList(likeClose.slice(start, likeShown), likeWant)
+        );
+        document.getElementById("status").textContent =
+          `${likeClose.length} close seconds. Showing ${likeShown}.`;
+        document.getElementById("more").hidden = likeShown >= likeClose.length;
+        hydrateCovers();
+        return;
+      }
       browseShown = Math.min(browseShown + PAGE_SIZE, browseList.length);
       showBrowse();
     };
