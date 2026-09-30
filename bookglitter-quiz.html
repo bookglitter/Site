@@ -92,15 +92,22 @@
     }
     .match {
       position: absolute; top: 10px; right: 10px;
-      font: 700 12px system-ui, sans-serif;
+      display: inline-flex; align-items: center; gap: 6px;
+      font: 700 11px system-ui, sans-serif;
       color: #efe8ff;
       background: #1b2c48;
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 4px 8px;
+      padding: 4px 8px 4px 4px;
       letter-spacing: 0.02em;
       white-space: nowrap;
     }
+    .match .bucket {
+      border-radius: 999px; padding: 2px 7px; letter-spacing: .06em;
+    }
+    .match .bucket.start { background: #2f6f4e; color: #fff; }
+    .match .bucket.wait { background: #5a4a1d; color: #f3e2a8; }
+    .match .bucket.skip { background: #4a2a36; color: #f0b7c2; }
     .cover-wrap {
       flex: 0 0 56px; width: 56px; height: 84px; position: relative;
       border-radius: 4px; overflow: hidden; background: #1a2c44;
@@ -545,8 +552,14 @@
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
         const verdict = verdictFor(b, want);
         const pct = matchPct(b, want);
-        const matchEl = pct === null ? "" : `<div class="match">${pct}% match</div>`;
-        const verdictPill = verdict ? `<span class="pill ${verdict.cls}">${verdict.label.toUpperCase()}</span>` : "";
+        let matchEl = "";
+        if (verdict && pct !== null) {
+          matchEl = `<div class="match"><span class="bucket ${verdict.cls}">${verdict.label.toUpperCase()}</span> ${pct}% match</div>`;
+        } else if (pct !== null) {
+          matchEl = `<div class="match">${pct}% match</div>`;
+        } else if (verdict) {
+          matchEl = `<div class="match"><span class="bucket ${verdict.cls}">${verdict.label.toUpperCase()}</span></div>`;
+        }
         const seriesName = (b.sn || "").trim();
         const seriesBrowse = seriesName
           ? (/^(the|a|an)\s/i.test(seriesName) ? `Browse ${escapeHtml(seriesName)}` : `Browse the ${escapeHtml(seriesName)} series`)
@@ -556,7 +569,7 @@
         const seriesHref = seriesAmazon(b);
         const secondLabel = seriesBrowse;
         const caption = startCaption(b);
-        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
     }
     function render(list, want) {
