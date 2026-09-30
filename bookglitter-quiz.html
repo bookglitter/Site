@@ -248,7 +248,7 @@
       { axis: "QUEST–COURT", short: "Quest–court", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
       { axis: "REREAD", short: "Reread", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
     ];
-    const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0] };
+    const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], exact: false };
     let BOOKS = [];
     let browseList = [];
     let browseShown = 0;
@@ -336,12 +336,16 @@
     function applyDeepLink() {
       const sliders = parseSliderParam();
       if (!sliders || !BOOKS.length) return false;
+      const exact = new URLSearchParams(location.search).get("exact") === "1";
       state.b = sliders.slice();
+      state.exact = exact;
       paint("b");
       show("browse");
       runBrowse();
       const status = document.getElementById("status");
-      status.textContent = "Showing books with sliders like this title.";
+      status.textContent = exact
+        ? "Exact slider matches for this title."
+        : "Showing books with sliders like this title.";
       return true;
     }
     function distance(book, want) {
@@ -467,6 +471,7 @@
     };
     document.getElementById("reset-browse").onclick = () => {
       state.b = [0,0,0,0,0,0];
+      state.exact = false;
       document.getElementById("search").value = "";
       document.getElementById("b-stand").value = "";
       document.getElementById("b-genre").value = "";
@@ -498,6 +503,8 @@
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
         if (q && !(`${b.t} ${b.a} ${b.sn || ""}`.toLowerCase().includes(q))) return false;
+        if (!want.some(v => v)) return true;
+        if (state.exact) return want.every((v, i) => !v || Number(b.r[i] || 3) === v);
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
       });
       if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
@@ -508,8 +515,11 @@
       showBrowse();
     }
     function showBrowse() {
-      document.getElementById("status").textContent = `${browseList.length} books. Showing ${browseShown}.`;
-      render(browseList.slice(0, browseShown), null);
+      const label = state.exact
+        ? `${browseList.length} exact slider matches. Showing ${browseShown}.`
+        : `${browseList.length} books. Showing ${browseShown}.`;
+      document.getElementById("status").textContent = label;
+      render(browseList.slice(0, browseShown), state.exact ? state.b : null);
       document.getElementById("more").hidden = browseShown >= browseList.length;
     }
     document.getElementById("more").onclick = () => {
