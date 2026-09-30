@@ -327,6 +327,23 @@
     }
     const startView = new URLSearchParams(location.search).get("view");
     if (startView === "library" || startView === "browse") show("browse");
+    function parseSliderParam() {
+      const raw = new URLSearchParams(location.search).get("r") || "";
+      const parts = raw.split(",").map(n => Number(n));
+      if (parts.length !== 6 || parts.some(n => !n || n < 1 || n > 5)) return null;
+      return parts;
+    }
+    function applyDeepLink() {
+      const sliders = parseSliderParam();
+      if (!sliders || !BOOKS.length) return false;
+      state.b = sliders.slice();
+      paint("b");
+      show("browse");
+      runBrowse();
+      const status = document.getElementById("status");
+      status.textContent = "Showing books with sliders like this title.";
+      return true;
+    }
     function distance(book, want) {
       let d = 0;
       want.forEach((v, i) => { if (v) d += Math.abs((book.r[i] || 3) - v); });
@@ -576,6 +593,7 @@
         status.textContent = fromCache
           ? `${BOOKS.length} books loaded from cache. Set the sliders and go.`
           : `${BOOKS.length} books loaded. Set the sliders and go.`;
+        applyDeepLink();
       }
       try {
         const raw = localStorage.getItem(BOOKS_CACHE_KEY);
