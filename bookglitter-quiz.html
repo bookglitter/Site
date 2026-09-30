@@ -163,9 +163,16 @@
     .pill.start { background: #2f6f4e; border-color: #3e8a62; color: #fff; }
     .pill.wait { background: #5a4a1d; border-color: #c4a35a; color: #f3e2a8; }
     .pill.skip { background: #4a2a36; border-color: #c47a8a; color: #f0b7c2; }
-    .book a { color: var(--purple); text-decoration: none; font-size: .82rem; }
+    .book a { color: var(--purple); text-decoration: none; }
     .book a:hover { color: #efe8ff; text-decoration: underline; }
-    .links { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 2px; }
+    .book a.cover-link {
+      flex: 0 0 56px; display: block; text-decoration: none;
+    }
+    .book a.cover-link:hover { text-decoration: none; }
+    .book a.title-link {
+      color: var(--ink); font-size: inherit; font-family: inherit; font-weight: inherit;
+    }
+    .book a.title-link:hover { color: var(--purple); }
     .share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .share-row a, .share-row button {
       background: transparent; color: var(--silver); border: 1px solid var(--line);
@@ -640,19 +647,18 @@
           matchEl = `<div class="match"><span class="bucket ${verdict.cls}">${verdict.label.toUpperCase()}</span></div>`;
         }
         const seriesName = (b.sn || "").trim();
-        const seriesBrowse = seriesName
-          ? (/^(the|a|an)\s/i.test(seriesName) ? `Browse ${escapeHtml(seriesName)}` : `Browse the ${escapeHtml(seriesName)} series`)
-          : `More by ${escapeHtml(b.a || "this author")}`;
         const series = seriesLabel(b);
         const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
         const seriesHref = seriesAmazon(b);
-        const secondLabel = seriesBrowse;
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
           : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(siteHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
-        return `<article class="book">${coverEl(b)}<div class="info"><div class="title-row"><h3>${escapeHtml(b.t)}</h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${why ? `<div class="pills">${why}</div>` : ""}<div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div>${shareRow}</div></article>`;
+        const seriesLine = series
+          ? `<a class="series-line" href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(series)}</a>`
+          : "";
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}</a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
