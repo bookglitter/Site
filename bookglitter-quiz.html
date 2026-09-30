@@ -270,7 +270,7 @@
     </div>
     <div id="panel-browse" hidden>
       <div class="filters">
-        <input type="search" id="search" placeholder="Type a title you loved or a title you’re interested in reading" />
+        <input type="search" id="search" placeholder="Type a book you liked" />
         <select id="b-stand">
           <option value="">Standalone or series</option>
           <option value="Y">Standalone only</option>
@@ -880,9 +880,7 @@
       function applyBooks(data, fromCache) {
         BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
         fillGenres();
-        status.textContent = fromCache
-          ? `${BOOKS.length} books loaded from cache. Set the sliders and go.`
-          : `${BOOKS.length} books loaded. Set the sliders and go.`;
+        status.textContent = `${BOOKS.length} books loaded. Set the sliders and go.`;
         applyDeepLink();
       }
       try {
@@ -925,8 +923,18 @@
     if (window.self !== window.top) {
       const title = document.getElementById("widget-title");
       const sub = document.getElementById("widget-sub");
+      const disc = document.querySelector(".disclosure");
       if (title) title.classList.add("embed-hide");
       if (sub) sub.classList.add("embed-hide");
+      if (disc) disc.classList.add("embed-hide");
+      function reportHeight() {
+        const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+        parent.postMessage({ type: "bg-height", height: h + 16 }, "*");
+      }
+      window.addEventListener("load", reportHeight);
+      if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+      setTimeout(reportHeight, 400);
+      setTimeout(reportHeight, 2000);
     }
     load();
   </script>
