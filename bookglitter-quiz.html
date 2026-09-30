@@ -107,7 +107,9 @@
     .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
     .pills { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
-    .pill { font-size: .68rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--silver); }
+    .pill.start { background: #2f6f4e; border-color: #3e8a62; color: #fff; }
+    .pill.wait { background: #5a4a1d; border-color: #c4a35a; color: #f3e2a8; }
+    .pill.skip { background: #4a2a36; border-color: #c47a8a; color: #f0b7c2; }
     .book a { color: var(--purple); text-decoration: none; font-size: .82rem; }
     .links { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 2px; }
     .share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -229,7 +231,11 @@
     const DATA_URL = "https://script.google.com/macros/s/AKfycbwus_NfqGeDSLYG-GKFxnL0OGa-VzWZ-Z23vOH0mWIxgNbLpf_Bxg6gO4KkvswvUE5ZPw/exec";
     const AMAZON_TAG = "bookglitter-20";
     const PAGE_SIZE = 30;
+    const COVER_CONCURRENCY = 6;
+    const BOOKS_CACHE_KEY = "bookglitter-books-v2";
+    const BOOKS_CACHE_MS = 15 * 60 * 1000;
     const coverCache = {};
+    let coverGen = 0;
     const SLIDERS = [
       { axis: "ROMANCE", cells: ["Side plot", "Some romance", "Even mix", "Romance leads", "The point"] },
       { axis: "LIGHT–DARK", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
@@ -325,19 +331,37 @@
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
     }
+    function coverKey(title, author) {
+      return JSON.stringify([String(title || ""), String(author || "")]);
+    }
+    function parseCoverKey(key) {
+      try {
+        const parts = JSON.parse(key);
+        return [String(parts[0] || ""), String(parts[1] || "")];
+      } catch (e) {
+        return ["", ""];
+      }
+    }
     function coverEl(b) {
-      const key = `${b.t}|${b.a}`;
+      const key = coverKey(b.t, b.a);
       return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
     }
-    async function lookupCover(title, author) {
-      const ol = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=1&fields=cover_i`);
+    function verdictFor(book, want) {
+      if (!want) return null;
+      const d = distance(book, want);
+      if (d <= 3) return { label: "Start", cls: "start" };
+      if (d <= 6) return { label: "Wait", cls: "wait" };
+      return { label: "Skip", cls: "skip" };
+    }
+    async function lookupCover(title, author, signal) {
+      const ol = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=1&fields=cover_i`, { signal });
       if (ol.ok) {
         const data = await ol.json();
         const id = data.docs && data.docs[0] && data.docs[0].cover_i;
         if (id) return `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
       }
       const q = `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`;
-      const gb = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo/imageLinks/thumbnail)`);
+      const gb = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo/imageLinks/thumbnail)`, { signal });
       if (gb.ok) {
         const data = await gb.json();
         const thumb = data.items && data.items[0] && data.items[0].volumeInfo && data.items[0].volumeInfo.imageLinks && data.items[0].volumeInfo.imageLinks.thumbnail;
@@ -346,21 +370,31 @@
       return "";
     }
     async function hydrateCovers() {
+      const gen = ++coverGen;
       const wraps = [...document.querySelectorAll(".cover-wrap[data-cover]")];
-      for (const wrap of wraps) {
-        const key = wrap.dataset.cover;
-        const [t, a] = key.split("|");
-        const img = wrap.querySelector("img");
-        try {
-          if (coverCache[key] === undefined) coverCache[key] = await lookupCover(t, a);
-          if (!coverCache[key]) continue;
-          img.onload = () => { img.classList.add("show"); wrap.classList.add("has-img"); };
-          img.onerror = () => { coverCache[key] = ""; img.classList.remove("show"); wrap.classList.remove("has-img"); };
-          img.src = coverCache[key];
-        } catch (e) {}
+      let cursor = 0;
+      async function worker() {
+        while (cursor < wraps.length && gen === coverGen) {
+          const wrap = wraps[cursor++];
+          const key = wrap.dataset.cover;
+          const [t, a] = parseCoverKey(key);
+          const img = wrap.querySelector("img");
+          if (!img) continue;
+          try {
+            if (coverCache[key] === undefined) coverCache[key] = await lookupCover(t, a);
+            if (gen !== coverGen) return;
+            if (!coverCache[key]) continue;
+            img.onload = () => { img.classList.add("show"); wrap.classList.add("has-img"); };
+            img.onerror = () => { coverCache[key] = ""; img.classList.remove("show"); wrap.classList.remove("has-img"); };
+            img.src = coverCache[key];
+          } catch (e) {}
+        }
       }
+      const n = Math.min(COVER_CONCURRENCY, wraps.length);
+      await Promise.all(Array.from({ length: n }, worker));
     }
     function render(list, want) {
+      coverGen += 1;
       const box = document.getElementById("results");
       if (!list.length) {
         box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
@@ -370,6 +404,8 @@
         const why = want
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.axis} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
+        const verdict = verdictFor(b, want);
+        const verdictPill = verdict ? `<span class="pill ${verdict.cls}">${verdict.label}</span>` : "";
         const series = seriesLabel(b);
         const bookHref = bookAmazon(b);
         const seriesHref = seriesAmazon(b);
@@ -377,7 +413,7 @@
           ? `Browse the ${escapeHtml((b.sn || "").trim())} series`
           : `More by ${escapeHtml(b.a || "this author")}`;
         const caption = startCaption(b);
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${verdictPill}${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
       hydrateCovers();
     }
@@ -385,10 +421,14 @@
       const genres = [...new Set(BOOKS.map(b => b.g).filter(Boolean))].sort();
       ["q-genre", "b-genre"].forEach(id => {
         const sel = document.getElementById(id);
+        const current = sel.value;
+        sel.querySelectorAll("option:not(:first-child)").forEach(o => o.remove());
         genres.forEach(g => { const o = document.createElement("option"); o.value = g; o.textContent = g; sel.appendChild(o); });
+        if ([...sel.options].some(o => o.value === current)) sel.value = current;
       });
     }
     function clearResults() {
+      coverGen += 1;
       document.getElementById("results").innerHTML = "";
       document.getElementById("more").hidden = true;
       browseList = [];
@@ -524,15 +564,32 @@
     };
     async function load() {
       const status = document.getElementById("status");
+      function applyBooks(data, fromCache) {
+        BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
+        fillGenres();
+        status.textContent = fromCache
+          ? `${BOOKS.length} books loaded from cache. Set the sliders and go.`
+          : `${BOOKS.length} books loaded. Set the sliders and go.`;
+      }
+      try {
+        const raw = localStorage.getItem(BOOKS_CACHE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (cached && cached.ts && Date.now() - cached.ts < BOOKS_CACHE_MS && cached.books) {
+            applyBooks(cached.books, true);
+          }
+        }
+      } catch (err) {}
       try {
         const res = await fetch(DATA_URL, { cache: "no-store" });
         if (!res.ok) throw new Error(res.status);
-        BOOKS = await res.json();
-        if (BOOKS && BOOKS.books) BOOKS = BOOKS.books;
-        fillGenres();
-        status.textContent = `${BOOKS.length} books loaded. Set the sliders and go.`;
+        const fresh = await res.json();
+        applyBooks(fresh, false);
+        try {
+          localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
+        } catch (err) {}
       } catch (err) {
-        status.innerHTML = `<span class="err">Could not load the library.</span>`;
+        if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
       }
     }
     load();
