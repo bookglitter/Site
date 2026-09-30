@@ -109,6 +109,8 @@
     .pills { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
     .pill { font-size: .68rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--silver); }
     .book a { color: var(--purple); text-decoration: none; font-size: .82rem; }
+    .links { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 2px; }
+    .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .more {
       display: block; margin: 14px auto 0; background: transparent; color: var(--silver);
@@ -149,7 +151,7 @@
     </div>
     <div id="panel-browse" hidden>
       <div class="filters">
-        <input type="search" id="search" placeholder="Search title or author" />
+        <input type="search" id="search" placeholder="Search title, author, or series" />
         <select id="b-stand">
           <option value="">Standalone or series</option>
           <option value="Y">Standalone only</option>
@@ -197,6 +199,24 @@
         if (/(^|\.)amazon\./i.test(url.hostname)) url.searchParams.set("tag", AMAZON_TAG);
         return url.toString();
       } catch (e) { return u; }
+    }
+    function bookAmazon(b) {
+      const raw = b.u || `https://www.amazon.com/s?k=${encodeURIComponent((b.t || "") + " " + (b.a || ""))}`;
+      return affUrl(raw);
+    }
+    function seriesAmazon(b) {
+      const series = (b.sn || "").trim();
+      const author = (b.a || "").trim();
+      const q = series
+        ? `${series} series ${author}`.trim()
+        : `books by ${author}`.trim();
+      return `https://www.amazon.com/s?k=${encodeURIComponent(q)}&i=stripbooks&tag=${AMAZON_TAG}`;
+    }
+    function seriesLabel(b) {
+      const series = (b.sn || "").trim();
+      if (!series) return "";
+      const num = b.n === 0 || b.n ? String(b.n).replace(/\.0$/, "") : "";
+      return num ? `${series} · Book ${num}` : series;
     }
     function boardHTML(prefix) {
       const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`;
@@ -296,7 +316,13 @@
         const why = want
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.axis} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div><div class="pills">${why}</div>${b.u ? `<a href="${escapeHtml(affUrl(b.u))}" target="_blank" rel="sponsored noopener">Find it on Amazon</a>` : ""}</div></article>`;
+        const series = seriesLabel(b);
+        const bookHref = bookAmazon(b);
+        const seriesHref = seriesAmazon(b);
+        const secondLabel = (b.sn || "").trim()
+          ? `Browse the ${escapeHtml((b.sn || "").trim())} series`
+          : `More by ${escapeHtml(b.a || "this author")}`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div></div></article>`;
       }).join("");
       hydrateCovers();
     }
@@ -353,7 +379,7 @@
       let list = BOOKS.filter(b => {
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
-        if (q && !(`${b.t} ${b.a}`.toLowerCase().includes(q))) return false;
+        if (q && !(`${b.t} ${b.a} ${b.sn || ""}`.toLowerCase().includes(q))) return false;
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
       });
       if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
