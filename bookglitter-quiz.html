@@ -161,9 +161,16 @@
       border-radius: 14px; background: var(--navy-2);
     }
     .gems p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; font-family: system-ui, sans-serif; }
-    .gems a {
-      display: inline-block; background: var(--purple-2); color: #fff; text-decoration: none;
-      border-radius: 999px; padding: 8px 14px; font-size: .85rem; font-family: system-ui, sans-serif;
+    .pick { display: grid; gap: 6px; margin: 8px 0 12px; }
+    .pick button {
+      text-align: left; background: var(--navy-2); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; cursor: pointer; font-family: system-ui, sans-serif;
+    }
+    .pick button.on { border-color: var(--purple); background: var(--card); }
+    .pick small { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+    .seed { color: var(--silver); font-family: system-ui, sans-serif; font-size: .88rem; margin: 0 0 8px; }
+    .results h2 {
+      font-family: Georgia, serif; font-size: 1.1rem; margin: 16px 0 8px; font-weight: 600;
     }
     @media (min-width: 720px) {
       .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
@@ -198,7 +205,7 @@
     </div>
     <div id="panel-browse" hidden>
       <div class="filters">
-        <input type="search" id="search" placeholder="Search title, author, or series" />
+        <input type="search" id="search" placeholder="Type a title you loved or a title you’re interested in reading" />
         <select id="b-stand">
           <option value="">Standalone or series</option>
           <option value="Y">Standalone only</option>
@@ -211,7 +218,7 @@
           <option value="year">Sort: Newest</option>
         </select>
       </div>
-      <p class="hint">Tap a cell again to set that slider to any.</p>
+      <p class="hint">Type a title you loved or a title you’re interested in reading. Tap a book’s More like this to lock its sliders. Tap a slider cell again to set that one to any.</p>
       <div class="board" id="browse-board"></div>
       <div class="actions">
         <button class="reset" id="reset-browse" type="button">Start over</button>
@@ -257,7 +264,8 @@
       { axis: "QUEST–COURT", short: "Quest–court", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
       { axis: "REREAD", short: "Reread", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
     ];
-    const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], exact: false };
+    const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], l: [0,0,0,0,0,0], exact: false };
+    let seedBook = null;
     let BOOKS = [];
     let browseList = [];
     let browseShown = 0;
@@ -315,6 +323,7 @@
       const prefix = row.dataset.prefix;
       const i = Number(row.dataset.i);
       row.querySelectorAll(".cell").forEach(btn => {
+        if (prefix === "l") return;
         btn.addEventListener("click", () => {
           const n = Number(btn.dataset.n);
           if (prefix === "b" && state.b[i] === n) state.b[i] = 0;
@@ -336,6 +345,68 @@
     }
     const startView = new URLSearchParams(location.search).get("view");
     if (startView === "library" || startView === "browse") show("browse");
+
+    function bookSort(a, b) {
+      const author = (a.a || "").localeCompare(b.a || "");
+      if (author) return author;
+      const as = (a.sn || "").trim();
+      const bs = (b.sn || "").trim();
+      if (!as && !bs) return (a.t || "").localeCompare(b.t || "");
+      if (!as && bs) return -1;
+      if (as && !bs) return 1;
+      const series = as.localeCompare(bs);
+      if (series) return series;
+      const an = parseFloat(a.n);
+      const bn = parseFloat(b.n);
+      const av = Number.isFinite(an) ? an : 0;
+      const bv = Number.isFinite(bn) ? bn : 0;
+      if (av !== bv) return av - bv;
+      return (a.t || "").localeCompare(b.t || "");
+    }
+    function sameSliders(a, b) {
+      const ra = a.r || [];
+      const rb = b.r || [];
+      return ra.length === 6 && rb.length === 6 && ra.every((n, i) => Number(n) === Number(rb[i]));
+    }
+    function withinOne(a, want) {
+      return want.every((v, i) => Math.abs(Number(a.r[i] || 3) - v) <= 1);
+    }
+    function moreLike(book) {
+      seedBook = book;
+      state.b = (book.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
+      state.exact = true;
+      paint("b");
+      document.getElementById("search").value = book.t || "";
+      show("browse");
+      runLike();
+    }
+    function runLike() {
+      if (!seedBook) return;
+      const want = (seedBook.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
+      const exact = BOOKS.filter(b => sameSliders(b, seedBook)).sort(bookSort);
+      exact.sort((a, b) => {
+        if (a.t === seedBook.t && a.a === seedBook.a) return -1;
+        if (b.t === seedBook.t && b.a === seedBook.a) return 1;
+        return bookSort(a, b);
+      });
+      const close = BOOKS.filter(b => !sameSliders(b, seedBook) && withinOne(b, want))
+        .sort((a, b) => (b.gr || 0) - (a.gr || 0) || bookSort(a, b))
+        .slice(0, 10);
+      const exactShow = exact.filter(b => !(b.t === seedBook.t && b.a === seedBook.a)).slice(0, 10);
+      document.getElementById("status").textContent =
+        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${close.length} close seconds.`;
+      document.getElementById("more").hidden = true;
+      const box = document.getElementById("results");
+      box.innerHTML = gemsCard() +
+        `<h2>This book</h2>` +
+        renderList([seedBook], want) +
+        `<h2>Exact slider matches</h2>` +
+        (exactShow.length ? renderList(exactShow, want) : `<p class="hint">No other title shares all six numbers.</p>`) +
+        `<h2>Close seconds</h2>` +
+        (close.length ? renderList(close, want) : `<p class="hint">No close seconds in the library yet.</p>`);
+      hydrateCovers();
+    }
+
     function parseSliderParam() {
       const raw = new URLSearchParams(location.search).get("r") || "";
       const parts = raw.split(",").map(n => Number(n));
@@ -430,14 +501,8 @@
     function gemsCard() {
       return `<div class="gems"><p>Save this vibe. One email after each Sunday video, with books that sit on sliders like these.</p><a href="https://www.bookglitter.com/newsletter">Join Book Glitter Gems</a></div>`;
     }
-    function render(list, want) {
-      coverGen += 1;
-      const box = document.getElementById("results");
-      if (!list.length) {
-        box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
-        return;
-      }
-      box.innerHTML = list.map(b => {
+    function renderList(list, want) {
+      return list.map(b => {
         const why = want
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
@@ -452,8 +517,17 @@
         const seriesHref = seriesAmazon(b);
         const secondLabel = seriesBrowse;
         const caption = startCaption(b);
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
+    }
+    function render(list, want) {
+      coverGen += 1;
+      const box = document.getElementById("results");
+      if (!list.length) {
+        box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
+        return;
+      }
+      box.innerHTML = renderList(list, want);
       hydrateCovers();
     }
     function fillGenres() {
@@ -524,27 +598,22 @@
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
       if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
       const feat = (new URLSearchParams(location.search).get("feat") || "").trim().toLowerCase();
-      if (feat) {
+      const pin = feat || q;
+      if (pin) {
+        const seed = list.find(b => (b.t || "").trim().toLowerCase() === pin)
+          || list.find(b => q && (b.t || "").trim().toLowerCase().startsWith(q));
         list.sort((a, b) => {
-          const af = (a.t || "").trim().toLowerCase() === feat;
-          const bf = (b.t || "").trim().toLowerCase() === feat;
-          if (af && !bf) return -1;
-          if (bf && !af) return 1;
-          const author = (a.a || "").localeCompare(b.a || "");
-          if (author) return author;
-          const as = (a.sn || "").trim();
-          const bs = (b.sn || "").trim();
-          if (!as && !bs) return (a.t || "").localeCompare(b.t || "");
-          if (!as && bs) return -1;
-          if (as && !bs) return 1;
-          const series = as.localeCompare(bs);
-          if (series) return series;
-          const an = parseFloat(a.n);
-          const bn = parseFloat(b.n);
-          const av = Number.isFinite(an) ? an : 0;
-          const bv = Number.isFinite(bn) ? bn : 0;
-          if (av !== bv) return av - bv;
-          return (a.t || "").localeCompare(b.t || "");
+          const ap = (a.t || "").trim().toLowerCase() === pin;
+          const bp = (b.t || "").trim().toLowerCase() === pin;
+          if (ap && !bp) return -1;
+          if (bp && !ap) return 1;
+          if (!seed) return bookSort(a, b);
+          const ad = distance(a, seed.r || []);
+          const bd = distance(b, seed.r || []);
+          if (ad === 0 && bd !== 0) return -1;
+          if (bd === 0 && ad !== 0) return 1;
+          if (ad !== bd) return ad - bd;
+          return bookSort(a, b);
         });
       }
       browseList = list;
@@ -663,6 +732,12 @@
         if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
       }
     }
+    document.getElementById("results").addEventListener("click", e => {
+      const btn = e.target.closest(".more-like");
+      if (!btn) return;
+      const book = BOOKS.find(b => b.t === btn.dataset.title && b.a === btn.dataset.author);
+      if (book) moreLike(book);
+    });
     load();
   </script>
 </body>
