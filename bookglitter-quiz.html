@@ -86,9 +86,20 @@
     .disclosure { font-size: .72rem; font-style: italic; }
     .results { display: grid; gap: 10px; margin-top: 12px; }
     .book {
-      display: flex; gap: 12px; align-items: flex-start;
+      display: flex; gap: 12px; align-items: flex-start; position: relative;
       background: var(--navy-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
       font-family: system-ui, sans-serif;
+    }
+    .match {
+      position: absolute; top: 10px; right: 10px;
+      font: 700 12px system-ui, sans-serif;
+      color: #efe8ff;
+      background: #1b2c48;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
     }
     .cover-wrap {
       flex: 0 0 56px; width: 56px; height: 84px; position: relative;
@@ -103,7 +114,7 @@
       color: var(--silver); font-family: Georgia, serif; font-size: 1.2rem;
     }
     .cover-wrap.has-img .ph { display: none; }
-    .book .info { flex: 1; min-width: 0; }
+    .book .info { flex: 1; min-width: 0; padding-right: 72px; }
     .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
     .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; align-items: center; }
@@ -459,7 +470,14 @@
       const key = coverKey(b.t, b.a);
       return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
     }
-    function verdictFor(book, want) {
+    function matchPct(book, want) {
+      if (!want || !want.some(v => v)) return null;
+      const active = want.filter(v => v).length;
+      const max = active * 4;
+      if (!max) return null;
+      const d = distance(book, want);
+      return Math.max(0, Math.min(100, Math.round(100 * (1 - d / max))));
+    }
       if (!want) return null;
       const d = distance(book, want);
       if (d <= 3) return { label: "Start", cls: "start" };
@@ -515,6 +533,8 @@
           ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
         const verdict = verdictFor(b, want);
+        const pct = matchPct(b, want);
+        const matchEl = pct === null ? "" : `<div class="match">${pct}% match</div>`;
         const verdictPill = verdict ? `<span class="pill ${verdict.cls}">${verdict.label.toUpperCase()}</span>` : "";
         const seriesName = (b.sn || "").trim();
         const seriesBrowse = seriesName
@@ -525,7 +545,7 @@
         const seriesHref = seriesAmazon(b);
         const secondLabel = seriesBrowse;
         const caption = startCaption(b);
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${matchEl}${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
     }
     function render(list, want) {
