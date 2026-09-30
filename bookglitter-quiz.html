@@ -237,6 +237,10 @@
       </div>
       <p class="hint">Quiz = pick a vibe. Browse = search a title you liked.</p>
       <p class="hint">The chip is closeness to your sliders, not a review.</p>
+      <p class="hint" id="vibe-line" hidden>
+        <button type="button" class="reset" id="copy-vibe">Copy this vibe</button>
+        <span id="vibe-note"></span>
+      </p>
     </div>
     <div id="panel-browse" hidden>
       <div class="filters">
@@ -478,6 +482,9 @@
         : "Showing books with sliders like this title.";
       return true;
     }
+    function vibeUrl() {
+      return "https://www.bookglitter.com/quiz?r=" + state.q.join(",") + "&tab=quiz";
+    }
     function writeQuizLink() {
       const url = new URL(location.href);
       url.searchParams.set("r", state.q.join(","));
@@ -485,6 +492,8 @@
       url.searchParams.delete("exact");
       url.searchParams.delete("feat");
       history.replaceState({}, "", url.pathname + url.search);
+      const line = document.getElementById("vibe-line");
+      if (line) line.hidden = false;
     }
     function distance(book, want) {
       let d = 0;
@@ -877,6 +886,16 @@
       const book = BOOKS.find(b => b.t === btn.dataset.title && b.a === btn.dataset.author);
       if (book) moreLike(book);
     });
+    document.getElementById("copy-vibe").onclick = async () => {
+      const note = document.getElementById("vibe-note");
+      const link = vibeUrl();
+      try {
+        await navigator.clipboard.writeText(link);
+        note.textContent = " Copied. Send that link — it opens this vibe.";
+      } catch (err) {
+        note.textContent = " " + link;
+      }
+    };
     if (window.self !== window.top) {
       const title = document.getElementById("widget-title");
       const sub = document.getElementById("widget-sub");
