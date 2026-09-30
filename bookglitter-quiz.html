@@ -106,7 +106,11 @@
     .book .info { flex: 1; min-width: 0; }
     .book h3 { font-family: Georgia, serif; margin: 0 0 3px; font-size: 1.02rem; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
-    .pills { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; align-items: center; }
+    .pill { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--silver); }
+    .pill.start, .pill.wait, .pill.skip {
+      letter-spacing: .08em; font-weight: 700; font-size: .72rem;
+    }
     .pill.start { background: #2f6f4e; border-color: #3e8a62; color: #fff; }
     .pill.wait { background: #5a4a1d; border-color: #c4a35a; color: #f3e2a8; }
     .pill.skip { background: #4a2a36; border-color: #c47a8a; color: #f0b7c2; }
@@ -237,12 +241,12 @@
     const coverCache = {};
     let coverGen = 0;
     const SLIDERS = [
-      { axis: "ROMANCE", cells: ["Side plot", "Some romance", "Even mix", "Romance leads", "The point"] },
-      { axis: "LIGHT–DARK", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
-      { axis: "SERIES", cells: ["Standalone", "Duology", "Short series", "Long series", "Huge series"] },
-      { axis: "DOOR", cells: ["Camera leaves", "Fade to black", "Some on-page", "Open door", "Explicit"] },
-      { axis: "QUEST–COURT", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
-      { axis: "REREAD", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
+      { axis: "ROMANCE", short: "Romance", cells: ["Side plot", "Some romance", "Even mix", "Romance leads", "The point"] },
+      { axis: "LIGHT–DARK", short: "Light–dark", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
+      { axis: "SERIES", short: "Series", cells: ["Standalone", "Duology", "Short series", "Long series", "Huge series"] },
+      { axis: "DOOR", short: "Door", cells: ["Camera leaves", "Fade to black", "Some on-page", "Open door", "Explicit"] },
+      { axis: "QUEST–COURT", short: "Quest–court", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
+      { axis: "REREAD", short: "Reread", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
     ];
     const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0] };
     let BOOKS = [];
@@ -402,18 +406,20 @@
       }
       box.innerHTML = list.map(b => {
         const why = want
-          ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.axis} ${b.r[i]}</span>`).join("")
+          ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${b.r[i]}</span>`).join("")
           : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
         const verdict = verdictFor(b, want);
-        const verdictPill = verdict ? `<span class="pill ${verdict.cls}">${verdict.label}</span>` : "";
+        const verdictPill = verdict ? `<span class="pill ${verdict.cls}">${verdict.label.toUpperCase()}</span>` : "";
+        const seriesName = (b.sn || "").trim();
+        const seriesBrowse = seriesName
+          ? (/^(the|a|an)\s/i.test(seriesName) ? `Browse ${escapeHtml(seriesName)}` : `Browse the ${escapeHtml(seriesName)} series`)
+          : `More by ${escapeHtml(b.a || "this author")}`;
         const series = seriesLabel(b);
         const bookHref = bookAmazon(b);
         const seriesHref = seriesAmazon(b);
-        const secondLabel = (b.sn || "").trim()
-          ? `Browse the ${escapeHtml((b.sn || "").trim())} series`
-          : `More by ${escapeHtml(b.a || "this author")}`;
+        const secondLabel = seriesBrowse;
         const caption = startCaption(b);
-        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}<div class="pills">${verdictPill}${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
+        return `<article class="book">${coverEl(b)}<div class="info"><h3>${escapeHtml(b.t)}</h3><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${series ? `<div class="series-line">${escapeHtml(series)}</div>` : ""}${verdictPill ? `<div class="pills">${verdictPill}</div>` : ""}<div class="pills">${why}</div><div class="links"><a href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">Find this book on Amazon</a><a href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${secondLabel}</a></div><div class="share-row"><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(bookHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div></div></article>`;
       }).join("");
       hydrateCovers();
     }
