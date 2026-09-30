@@ -452,6 +452,10 @@
       }
     }
     function coverEl(b) {
+      const stored = String(b.c || "").trim();
+      if (stored) {
+        return `<div class="cover-wrap has-img"><img class="show" alt="" src="${escapeHtml(stored)}" /></div>`;
+      }
       const key = coverKey(b.t, b.a);
       return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">${escapeHtml((b.t || "?").charAt(0))}</span><img alt="" /></div>`;
     }
