@@ -554,6 +554,7 @@
       document.getElementById("more").hidden = true;
       browseList = [];
       browseShown = 0;
+      browseFallback = false;
       likeClose = [];
       likeShown = 0;
       seedBook = null;
@@ -581,10 +582,31 @@
       const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
-      const scored = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre)
-        .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
-        .sort((a, c) => a.d - c.d || c.gr - a.gr).slice(0, 12);
-      document.getElementById("status").textContent = `12 closest matches from ${BOOKS.length} books.`;
+      function scorePool(pool) {
+        return pool
+          .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+          .sort((a, c) => a.d - c.d || c.gr - a.gr);
+      }
+      let pool = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre);
+      let filteredOut = false;
+      if (!pool.length) {
+        pool = BOOKS.slice();
+        filteredOut = true;
+      }
+      let scored = scorePool(pool);
+      const closeEnough = scored.filter(x => x.d <= 3);
+      let fallback = false;
+      if (!closeEnough.length) {
+        fallback = true;
+        scored = scorePool(BOOKS).slice(0, 10);
+      } else {
+        scored = closeEnough.slice(0, 12);
+      }
+      document.getElementById("status").textContent = fallback
+        ? (filteredOut
+          ? "No books in that standalone/subgenre filter. 10 closest across the library instead."
+          : "Nothing sits on those exact sliders. 10 closest instead.")
+        : `${scored.length} closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
       render(scored.map(x => x.b), want);
       document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
@@ -629,10 +651,23 @@
       }
       browseList = list;
       browseShown = Math.min(PAGE_SIZE, list.length);
+      browseFallback = false;
+      if (!browseList.length && want.some(v => v)) {
+        browseList = BOOKS
+          .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+          .sort((a, c) => a.d - c.d || c.gr - a.gr)
+          .slice(0, 10)
+          .map(x => x.b);
+        browseShown = browseList.length;
+        browseFallback = true;
+      }
       showBrowse();
     }
+    let browseFallback = false;
     function showBrowse() {
-      const label = state.exact
+      const label = browseFallback
+        ? `No exact matches for those filters. 10 closest instead.`
+        : state.exact
         ? `${browseList.length} exact slider matches. Showing ${browseShown}.`
         : `${browseList.length} books. Showing ${browseShown}.`;
       document.getElementById("status").textContent = label;
