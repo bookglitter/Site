@@ -17,8 +17,8 @@
       --card: #15283f;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; }
-    body { padding: 16px 12px 48px; }
+    html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; height: auto; min-height: 0; }
+    body { padding: 16px 12px 24px; }
     .wrap { max-width: 980px; margin: 0 auto; }
     h1 { font-weight: 600; letter-spacing: .03em; font-size: 1.7rem; margin: 0 0 .3rem; }
     .sub { color: var(--muted); font-family: system-ui, sans-serif; font-size: .9rem; margin: 0 0 1rem; }
@@ -959,11 +959,19 @@
       if (sub) sub.classList.add("embed-hide");
       if (disc) disc.classList.add("embed-hide");
       function reportHeight() {
-        const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
-        parent.postMessage({ type: "bg-height", height: h + 16 }, "*");
+        const wrap = document.querySelector(".wrap") || document.body;
+        const h = Math.ceil(wrap.getBoundingClientRect().height + 20);
+        parent.postMessage({ type: "bg-height", height: Math.max(480, h) }, "*");
       }
       window.addEventListener("load", reportHeight);
-      if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(reportHeight);
+        ro.observe(document.body);
+        const wrap = document.querySelector(".wrap");
+        if (wrap) ro.observe(wrap);
+        const results = document.getElementById("results");
+        if (results) ro.observe(results);
+      }
       setTimeout(reportHeight, 400);
       setTimeout(reportHeight, 2000);
     }
