@@ -219,7 +219,7 @@
         <button type="button" id="share-fb">Share on Facebook</button>
         <button type="button" id="share-ig">Share on Instagram</button>
         <button type="button" id="share-gr">Share on Goodreads</button>
-        <button type="button" id="share-native">Share sheet</button>
+        <button type="button" id="share-native" hidden>Share sheet</button>
         <button type="button" id="share-copy">Copy caption + link</button>
         <button type="button" id="share-close">Close</button>
       </div>
@@ -456,6 +456,10 @@
     const shareModal = document.getElementById("share-modal");
     const shareText = document.getElementById("share-text");
     const shareLink = document.getElementById("share-link");
+    const shareNative = document.getElementById("share-native");
+    const canNativeShare = typeof navigator.share === "function" &&
+      ((navigator.maxTouchPoints || 0) > 0 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ""));
+    if (canNativeShare && shareNative) shareNative.hidden = false;
     function closeShare() {
       shareModal.classList.remove("on");
       shareModal.hidden = true;
