@@ -768,6 +768,65 @@
       clearResults();
       document.getElementById("status").textContent = "Filters cleared.";
     };
+    const SLIDER_PHRASES = ["side plot","subplot","barely any romance","some romance","romance on the side","romance is the point","the point","all romance","mostly romance","love story","romantic","romance","closed door","closed-door","fade to black","kissing only","no spice","open door","open-door","very spicy","high spice","on page","on-page","explicit","erotica","spicy","clean","one book","standalone","stand alone","stand-alone","two books","2 books","duology","huge series","long series","many books","series","one and done","read once","reread","comfort","wholesome","fluffy","sweet","cozy","soft","light","grief","violence","brutal","horror","tragic","angsty","angst","heavy","dark","politics","political","court","adventure","battle","action","quest","small town","small-town"];
+    function subjectPhrase(raw) {
+      let q = String(raw || "").toLowerCase();
+      SLIDER_PHRASES.slice().sort((a, b) => b.length - a.length).forEach(w => { q = q.split(w).join(" "); });
+      q = q.replace(/[^a-z0-9\s]/g, " ");
+      q = q.replace(/\b(a|an|the|with|and|or|book|books|story|stories|about|featuring|that|has|have|in|of|for|me|my|want|like|one|from|into|just|please|show|find)\b/g, " ");
+      return q.replace(/\s+/g, " ").trim();
+    }
+    function normTitle(s) {
+      return String(s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/:\s.*/, "").replace(/[^a-z0-9]+/g, " ").trim();
+    }
+    function titleHit(googleTitle, bookTitle) {
+      const g = normTitle(googleTitle);
+      const b = normTitle(bookTitle);
+      if (!g || !b) return false;
+      return g === b || g.startsWith(b + " ") || b.startsWith(g + " ");
+    }
+    async function googleSubject(subject) {
+      const key = "bg-subject:" + subject;
+      try {
+        const cached = sessionStorage.getItem(key);
+        if (cached) return JSON.parse(cached);
+      } catch (err) {}
+      const q = encodeURIComponent(subject + " romance fiction");
+      const url = "https://www.googleapis.com/books/v1/volumes?q=" + q + "&maxResults=40&printType=books&langRestrict=en";
+      const data = await fetch(url).then(r => r.json());
+      const words = subject.split(" ").filter(w => w.length > 2);
+      const titles = [];
+      (data.items || []).forEach(item => {
+        const info = item.volumeInfo || {};
+        const blob = ((info.title || "") + " " + (info.description || "")).toLowerCase();
+        if (!words.every(w => blob.indexOf(w) !== -1)) return;
+        if (info.title) titles.push(info.title);
+      });
+      try { sessionStorage.setItem(key, JSON.stringify(titles)); } catch (err) {}
+      return titles;
+    }
+    async function addSubjectMatches(want) {
+      const said = (new URLSearchParams(location.search).get("said") || (document.getElementById("ask-sentence") || {}).value || "").trim();
+      const subject = subjectPhrase(said);
+      if (!subject || subject.length < 3) return;
+      const box = document.getElementById("results");
+      const note = document.createElement("p");
+      note.className = "hint";
+      note.textContent = "Checking Google Books for “" + subject + "”…";
+      box.insertAdjacentElement("afterbegin", note);
+      try {
+        const titles = await googleSubject(subject);
+        const hits = BOOKS.filter(b => titles.some(t => titleHit(t, b.t)));
+        hits.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
+        note.remove();
+        const html = "<h2>Books with " + escapeHtml(subject) + "</h2>" + (hits.length ? renderList(hits.slice(0, 12), want, "quiz") : "<p class=\"hint\">Google Books did not match that subject to a title already in the library. Slider matches are below.</p>");
+        box.insertAdjacentHTML("afterbegin", html);
+        hydrateCovers();
+      } catch (err) {
+        note.textContent = "Subject search did not respond. Slider matches are below.";
+      }
+    }
+
     document.getElementById("run-quiz").onclick = () => {
       const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
@@ -803,6 +862,7 @@
       writeQuizLink();
       render(scored.map(x => x.b), want, "quiz");
       document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
+      addSubjectMatches(want);
     };
     document.getElementById("run-browse").onclick = runBrowse;
     document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
