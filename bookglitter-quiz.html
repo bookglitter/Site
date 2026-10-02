@@ -803,7 +803,6 @@
       writeQuizLink();
       render(scored.map(x => x.b), want, "quiz");
       document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
-      document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
     };
     document.getElementById("run-browse").onclick = runBrowse;
     document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
