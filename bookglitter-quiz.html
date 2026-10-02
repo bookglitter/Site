@@ -17,7 +17,7 @@
       --card: #15283f;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; height: auto; min-height: 0; }
+    html, body { margin: 0; padding: 0; background: var(--navy); color: var(--ink); font-family: Georgia, "Times New Roman", serif; height: auto; min-height: 0; overflow: hidden; }
     body { padding: 16px 12px 24px; }
     .wrap { max-width: 980px; margin: 0 auto; }
     h1 { font-weight: 600; letter-spacing: .03em; font-size: 1.7rem; margin: 0 0 .3rem; }
@@ -1028,7 +1028,7 @@
       function reportHeight() {
         const wrap = document.querySelector(".wrap") || document.body;
         const h = Math.ceil(wrap.getBoundingClientRect().height + 20);
-        parent.postMessage({ type: "bg-height", height: Math.max(480, h) }, "*");
+        parent.postMessage({ type: "bg-height", height: Math.max(520, h) }, "*");
       }
       window.addEventListener("load", reportHeight);
       if (window.ResizeObserver) {
