@@ -791,10 +791,11 @@
         const cached = sessionStorage.getItem(key);
         if (cached) return JSON.parse(cached);
       } catch (err) {}
-      const q = encodeURIComponent(subject + " romance fiction");
+      const stemmed = subject.split(" ").map(w => w.replace(/s$/, "")).join(" ");
+      const q = encodeURIComponent(stemmed + " romance fiction");
       const url = "https://www.googleapis.com/books/v1/volumes?q=" + q + "&maxResults=40&printType=books&langRestrict=en";
       const data = await fetch(url).then(r => r.json());
-      const words = subject.split(" ").filter(w => w.length > 2);
+      const words = subject.split(" ").filter(w => w.length > 2).map(w => w.replace(/s$/, ""));
       const titles = [];
       (data.items || []).forEach(item => {
         const info = item.volumeInfo || {};
@@ -819,9 +820,22 @@
         const hits = BOOKS.filter(b => titles.some(t => titleHit(t, b.t)));
         hits.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
         note.remove();
-        const html = "<h2>Books with " + escapeHtml(subject) + "</h2>" + (hits.length ? renderList(hits.slice(0, 12), want, "quiz") : "<p class=\"hint\">Google Books did not match that subject to a title already in the library. Slider matches are below.</p>");
-        box.insertAdjacentHTML("afterbegin", html);
+        const block = document.createElement("div");
+        block.className = "subject-block";
+        if (hits.length) {
+          block.innerHTML = "<h2>Books with " + escapeHtml(subject) + "</h2>" + renderList(hits.slice(0, 12), want, "quiz");
+        } else {
+          block.innerHTML = "<p class=\"hint\">No library title matched \"" + escapeHtml(subject) + "\" on Google Books. Slider matches are below.</p>";
+        }
+        const gems = box.querySelector(".gems");
+        if (gems) gems.insertAdjacentElement("afterend", block);
+        else box.insertAdjacentElement("afterbegin", block);
         hydrateCovers();
+        if (window.parent && window.parent !== window) {
+          const wrap = document.querySelector(".wrap") || document.body;
+          const h = Math.ceil(wrap.getBoundingClientRect().height + 20);
+          parent.postMessage({ type: "bg-height", height: Math.max(520, h + 16) }, "*");
+        }
       } catch (err) {
         note.textContent = "Subject search did not respond. Slider matches are below.";
       }
