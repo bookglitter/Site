@@ -57,12 +57,7 @@
     .cell.on {
       background: var(--purple-2); border-color: var(--purple); color: #fff; font-weight: 600;
     }
-    @media (min-width: 721px) {
-      .axis {
-        position: sticky; left: 0; z-index: 2;
-        box-shadow: 8px 0 10px -8px rgba(0,0,0,.55);
-      }
-    }
+    .axis { position: static; }
     @media (max-width: 720px) {
       .board { overflow-x: visible; }
       .scale {
@@ -1020,7 +1015,7 @@
       function reportHeight() {
         const wrap = document.querySelector(".wrap") || document.body;
         const h = Math.ceil(wrap.getBoundingClientRect().height + 20);
-        parent.postMessage({ type: "bg-height", height: Math.max(520, h) }, "*");
+        parent.postMessage({ type: "bg-height", height: Math.max(520, h + 16) }, "*");
       }
       window.addEventListener("load", reportHeight);
       if (window.ResizeObserver) {
