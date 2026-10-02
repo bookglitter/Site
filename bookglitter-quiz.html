@@ -788,25 +788,34 @@
       return g === b || g.startsWith(b + " ") || b.startsWith(g + " ");
     }
     async function googleSubject(subject) {
-      const key = "bg-subject:" + subject;
+      const key = "bg-subject-desc:" + subject;
       try {
         const cached = sessionStorage.getItem(key);
         if (cached) return JSON.parse(cached);
       } catch (err) {}
       const stemmed = subject.split(" ").map(w => w.replace(/s$/, "")).join(" ");
-      const q = encodeURIComponent(stemmed + " romance fiction");
+      const words = stemmed.split(" ").filter(w => w.length > 2);
+      const q = encodeURIComponent('"' + stemmed + '" romance');
       const url = "https://www.googleapis.com/books/v1/volumes?q=" + q + "&maxResults=40&printType=books&langRestrict=en";
       const data = await fetch(url).then(r => r.json());
-      const words = subject.split(" ").filter(w => w.length > 2).map(w => w.replace(/s$/, ""));
-      const titles = [];
+      const hits = [];
       (data.items || []).forEach(item => {
         const info = item.volumeInfo || {};
-        const blob = ((info.title || "") + " " + (info.description || "")).toLowerCase();
-        if (!words.every(w => blob.indexOf(w) !== -1)) return;
-        if (info.title) titles.push(info.title);
+        const description = info.description || "";
+        const blob = description.toLowerCase();
+        if (!words.length || !words.every(w => blob.indexOf(w) !== -1)) return;
+        if (!info.title) return;
+        const at = blob.indexOf(words[0]);
+        const snippet = description.slice(Math.max(0, at - 40), at + 110).replace(/\s+/g, " ").trim();
+        hits.push({ title: info.title, authors: info.authors || [], snippet: snippet });
       });
-      try { sessionStorage.setItem(key, JSON.stringify(titles)); } catch (err) {}
-      return titles;
+      try { sessionStorage.setItem(key, JSON.stringify(hits)); } catch (err) {}
+      return hits;
+    }
+    function authorHit(googleAuthors, bookAuthor) {
+      const blob = (googleAuthors || []).join(" ").toLowerCase();
+      const last = String(bookAuthor || "").toLowerCase().split(" ").filter(Boolean).pop();
+      return !!(last && last.length > 2 && blob.indexOf(last) !== -1);
     }
     async function addSubjectMatches(want) {
       const said = (new URLSearchParams(location.search).get("said") || (document.getElementById("ask-sentence") || {}).value || "").trim();
@@ -815,19 +824,32 @@
       const box = document.getElementById("results");
       const note = document.createElement("p");
       note.className = "hint";
-      note.textContent = "Checking Google Books for “" + subject + "”…";
+      note.textContent = "Checking Google Books descriptions for “" + subject + "”…";
       box.insertAdjacentElement("afterbegin", note);
       try {
-        const titles = await googleSubject(subject);
-        const hits = BOOKS.filter(b => titles.some(t => titleHit(t, b.t)));
-        hits.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
+        const found = await googleSubject(subject);
+        const hits = BOOKS.filter(b => found.some(g => titleHit(g.title, b.t) || (authorHit(g.authors, b.a) && titleHit(g.title, b.t))));
+        const loose = BOOKS.filter(b => found.some(g => {
+          if (titleHit(g.title, b.t)) return true;
+          if (!authorHit(g.authors, b.a)) return false;
+          const words = normTitle(g.title).split(" ").filter(w => w.length > 3);
+          const bookWords = normTitle(b.t).split(" ");
+          return words.some(w => bookWords.indexOf(w) !== -1);
+        }));
+        const picked = (hits.length ? hits : loose);
+        picked.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
         note.remove();
         const block = document.createElement("div");
         block.className = "subject-block";
-        if (hits.length) {
-          block.innerHTML = "<h2>Books with " + escapeHtml(subject) + "</h2>" + renderList(hits.slice(0, 12), want, "quiz");
+        if (picked.length) {
+          const cards = picked.slice(0, 12).map(b => {
+            const g = found.find(item => titleHit(item.title, b.t) || authorHit(item.authors, b.a));
+            const snippet = g && g.snippet ? "<p class=\"hint\">" + escapeHtml(g.snippet) + "</p>" : "";
+            return renderList([b], want, "quiz").replace("</article>", snippet + "</article>");
+          }).join("");
+          block.innerHTML = "<h2>Books whose description mentions " + escapeHtml(subject) + "</h2>" + cards;
         } else {
-          block.innerHTML = "<p class=\"hint\">No library title matched \"" + escapeHtml(subject) + "\" on Google Books. Slider matches are below.</p>";
+          block.innerHTML = "<p class=\"hint\">No Google Books description mentioned \"" + escapeHtml(subject) + "\" for a book already in the library. Slider matches are below.</p>";
         }
         const gems = box.querySelector(".gems");
         if (gems) gems.insertAdjacentElement("afterend", block);
@@ -839,7 +861,7 @@
           parent.postMessage({ type: "bg-height", height: Math.max(520, h + 16) }, "*");
         }
       } catch (err) {
-        note.textContent = "Subject search did not respond. Slider matches are below.";
+        note.textContent = "Description search did not respond. Slider matches are below.";
       }
     }
 
