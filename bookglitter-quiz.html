@@ -560,12 +560,10 @@
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
       const said = params.get("said") || params.get("q");
-      if (said) {
+      if (said && params.get("plain") !== "1") {
         const box = document.getElementById("ask-sentence");
-        const note = document.getElementById("ask-note");
         if (box) box.value = said;
-        if (note) note.textContent = "Matches for this sentence are listed below.";
-        liftSentenceResults();
+        askSentence();
       }
       const feat = (params.get("feat") || "").trim().toLowerCase();
       const featAuthor = (params.get("a") || "").trim().toLowerCase();
