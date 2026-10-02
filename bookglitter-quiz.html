@@ -238,13 +238,15 @@
       .cover-wrap { flex-basis: 72px; width: 72px; height: 108px; }
     }
   
-    .ask-box { display: none; margin: 0 0 16px; padding: 14px; border: 1px solid #d7d2ea; border-radius: 14px; background: #f7f5fc; color: #1b2340; }
+    .ask-box { display: none; margin: 0 0 16px; padding: 14px; border: 1px solid #2a3558; border-radius: 14px; background: #141c33; color: #e8eaf2; }
+    body.embed { padding: 0; background: #0e1730; }
+    body.embed .wrap { max-width: none; }
     .ask-box.show { display: block; }
-    .ask-box label { display: block; font-weight: 700; margin-bottom: 8px; color: #1b2340; }
-    .ask-box textarea { width: 100%; min-height: 72px; box-sizing: border-box; border: 1px solid #c9c2df; border-radius: 10px; padding: 10px; font: inherit; resize: vertical; color: #1b2340; background: #ffffff; }
+    .ask-box label { display: block; font-weight: 700; margin-bottom: 8px; color: #e8eaf2; }
+    .ask-box textarea { width: 100%; min-height: 72px; box-sizing: border-box; border: 1px solid #3a466c; border-radius: 10px; padding: 10px; font: inherit; resize: vertical; color: #e8eaf2; background: #0e1730; }
     .ask-box textarea::placeholder { color: #6d6788; }
     .ask-box .go { margin-top: 10px; }
-    .ask-box .hint { color: #3d4560; }
+    .ask-box .hint { color: #c5cbe0; }
 
   </style>
 </head>
@@ -1079,6 +1081,7 @@
       if (ask && said && params.get("plain") !== "1") ask.classList.add("show");
     })();
     if (window.self !== window.top) {
+      document.body.classList.add("embed");
       const title = document.getElementById("widget-title");
       const sub = document.getElementById("widget-sub");
       const disc = document.querySelector(".disclosure");
