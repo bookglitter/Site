@@ -1000,6 +1000,10 @@
         note.textContent = " " + link;
       }
     };
+    if (new URLSearchParams(location.search).get("plain") === "1") {
+      const ask = document.querySelector(".ask-box");
+      if (ask) ask.style.display = "none";
+    }
     if (window.self !== window.top) {
       const title = document.getElementById("widget-title");
       const sub = document.getElementById("widget-sub");
