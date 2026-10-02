@@ -249,6 +249,12 @@
       .cell { min-height: 58px; font-size: .78rem; }
       .cover-wrap { flex-basis: 72px; width: 72px; height: 108px; }
     }
+  
+    .ask-box { margin: 0 0 16px; padding: 14px; border: 1px solid #d7d2ea; border-radius: 14px; background: #f7f5fc; }
+    .ask-box label { display: block; font-weight: 700; margin-bottom: 8px; }
+    .ask-box textarea { width: 100%; min-height: 72px; box-sizing: border-box; border: 1px solid #c9c2df; border-radius: 10px; padding: 10px; font: inherit; resize: vertical; }
+    .ask-box .go { margin-top: 10px; }
+
   </style>
 </head>
 <body>
@@ -260,6 +266,13 @@
       <button class="tab" id="tab-browse" type="button">Browse &amp; filter</button>
     </div>
     <div id="panel-quiz">
+
+      <div class="ask-box">
+        <label for="ask-sentence">Describe the book you want</label>
+        <textarea id="ask-sentence" maxlength="280" placeholder="cozy closed-door small town, one book"></textarea>
+        <button class="go" id="ask-go" type="button">Match this sentence</button>
+        <p class="hint" id="ask-note"></p>
+      </div>
       <div class="board" id="quiz-board"></div>
       <div class="filters">
         <select id="q-stand">
@@ -421,6 +434,35 @@
       });
     });
     paint("q"); paint("b");
+
+    const ASK_URL = "https://script.google.com/macros/s/AKfycbwus_NfqGeDSLYG-GKFxnL0OGa-VzWZ-Z23vOH0mWIxgNbLpf_Bxg6gO4KkvswvUE5ZPw/exec";
+    document.getElementById("ask-go").onclick = askSentence;
+    document.getElementById("ask-sentence").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askSentence(); }
+    });
+    async function askSentence() {
+      const box = document.getElementById("ask-sentence");
+      const note = document.getElementById("ask-note");
+      const q = box.value.trim();
+      if (!q) { note.textContent = "Type a sentence first."; return; }
+      note.textContent = "Matching that sentence…";
+      document.getElementById("ask-go").disabled = true;
+      try {
+        const res = await fetch(ASK_URL + "?ask=" + encodeURIComponent(q));
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "No scores");
+        state.q = ["romance", "light", "series", "door", "quest", "reread"].map(k => Number(data[k]));
+        paint("q");
+        show("quiz");
+        note.textContent = "Sliders set from your sentence.";
+        document.getElementById("run-quiz").click();
+      } catch (err) {
+        note.textContent = "Could not match that sentence. Try again.";
+      } finally {
+        document.getElementById("ask-go").disabled = false;
+      }
+    }
+
     document.getElementById("tab-quiz").onclick = () => show("quiz");
     document.getElementById("tab-browse").onclick = () => show("browse");
     function show(which) {
