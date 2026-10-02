@@ -546,7 +546,7 @@
     }
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
-      const said = params.get("q");
+      const said = params.get("said") || params.get("q");
       if (said) {
         const box = document.getElementById("ask-sentence");
         const note = document.getElementById("ask-note");
