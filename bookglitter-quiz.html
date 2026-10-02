@@ -547,26 +547,19 @@
       if (parts.length !== 6 || parts.some(n => !n || n < 1 || n > 5)) return null;
       return parts;
     }
-    function liftSentenceResults() {
-      const ask = document.querySelector(".ask-box");
-      const results = document.getElementById("results");
-      const more = document.getElementById("more");
-      const status = document.getElementById("status");
-      if (!ask || !results || results.dataset.lifted === "1") return;
-      ask.insertAdjacentElement("afterend", results);
-      if (more) results.insertAdjacentElement("afterend", more);
-      if (status) results.insertAdjacentElement("beforebegin", status);
-      results.dataset.lifted = "1";
-    }
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
       const said = params.get("said") || params.get("q");
       if (said) {
         const box = document.getElementById("ask-sentence");
-        const note = document.getElementById("ask-note");
+        const ask = document.querySelector(".ask-box");
         if (box) box.value = said;
-        if (note) note.textContent = "Matches for this sentence are listed below.";
-        liftSentenceResults();
+        if (ask) ask.classList.add("show");
+        if (!window.__bgSentenceMatched) {
+          window.__bgSentenceMatched = true;
+          askSentence();
+        }
+        return true;
       }
       const feat = (params.get("feat") || "").trim().toLowerCase();
       const featAuthor = (params.get("a") || "").trim().toLowerCase();
