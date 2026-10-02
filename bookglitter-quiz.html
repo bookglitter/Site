@@ -89,6 +89,7 @@
       .cell::before, .cell::after { display: none; }
     }
     .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; font-family: system-ui, sans-serif; }
+    .search-lead { width:100%; box-sizing:border-box; margin:0 0 12px; padding:12px 14px; border:1px solid #c9c4dc; border-radius:10px; font:16px/1.3 inherit; }
     select, input[type=search] {
       background: var(--navy-2); color: var(--ink); border: 1px solid var(--line);
       border-radius: 10px; padding: 10px 12px; font-size: .88rem;
@@ -263,7 +264,7 @@
 <body>
   <div class="wrap">
     <h1 id="widget-title">Sunday Sliders</h1>
-    <p class="sub" id="widget-sub">Each result is sorted by the proximity to YOUR sliders. This is not a book review.</p>
+    <p class="sub" id="widget-sub">Pick a vibe, then find the books.</p>
     <div class="tabs">
       <button class="tab on" id="tab-quiz" type="button">Sliders</button>
       <button class="tab" id="tab-browse" type="button">Search a title</button>
@@ -289,16 +290,14 @@
         <button class="reset" id="reset-quiz" type="button">Start over</button>
         <button class="go" id="run-quiz" type="button">Find my next book</button>
       </div>
-      <p class="hint">Sliders = pick a vibe. Search a title = type a book you liked.</p>
-      <p class="hint">Each result is sorted by the proximity to YOUR sliders. This is not a book review.</p>
       <p class="hint" id="vibe-line" hidden>
         <button type="button" class="reset" id="copy-vibe">Share this vibe</button>
         <span id="vibe-note"></span>
       </p>
     </div>
     <div id="panel-browse" hidden>
+      <input class="search-lead" type="search" id="search" placeholder="Type a book you liked" />
       <div class="filters">
-        <input type="search" id="search" placeholder="Type a book you liked" />
         <select id="b-stand">
           <option value="">Standalone or series</option>
           <option value="Y">Standalone only</option>
@@ -457,7 +456,7 @@
         state.q = ["romance", "light", "series", "door", "quest", "reread"].map(k => Number(data[k]));
         paint("q");
         show("quiz");
-        note.textContent = "Sliders set from your sentence.";
+        note.textContent = "Sliders set. Matches are below.";
         document.getElementById("run-quiz").click();
       } catch (err) {
         note.textContent = "Could not match that sentence. Try again.";
@@ -547,19 +546,26 @@
       if (parts.length !== 6 || parts.some(n => !n || n < 1 || n > 5)) return null;
       return parts;
     }
+    function liftSentenceResults() {
+      const ask = document.querySelector(".ask-box");
+      const results = document.getElementById("results");
+      const more = document.getElementById("more");
+      const status = document.getElementById("status");
+      if (!ask || !results || results.dataset.lifted === "1") return;
+      ask.insertAdjacentElement("afterend", results);
+      if (more) results.insertAdjacentElement("afterend", more);
+      if (status) results.insertAdjacentElement("beforebegin", status);
+      results.dataset.lifted = "1";
+    }
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
       const said = params.get("said") || params.get("q");
       if (said) {
         const box = document.getElementById("ask-sentence");
-        const ask = document.querySelector(".ask-box");
+        const note = document.getElementById("ask-note");
         if (box) box.value = said;
-        if (ask) ask.classList.add("show");
-        if (!window.__bgSentenceMatched) {
-          window.__bgSentenceMatched = true;
-          askSentence();
-        }
-        return true;
+        if (note) note.textContent = "Matches for this sentence are listed below.";
+        liftSentenceResults();
       }
       const feat = (params.get("feat") || "").trim().toLowerCase();
       const featAuthor = (params.get("a") || "").trim().toLowerCase();
@@ -968,7 +974,7 @@
       function applyBooks(data, fromCache) {
         BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
         fillGenres();
-        status.textContent = `${BOOKS.length} books loaded. Set the sliders and go.`;
+        status.textContent = "";
         applyDeepLink();
       }
       try {
