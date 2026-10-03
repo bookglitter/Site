@@ -363,7 +363,7 @@
     function bookSiteUrl(b) {
       const feat = encodeURIComponent(b.t || "");
       const r = (b.r || []).filter(n => n >= 1 && n <= 5).join(",");
-      let url = `https://www.bookglitter.com/quiz?view=library&feat=${feat}`;
+      let url = `https://www.bookglitter.com/sliders?view=library&feat=${feat}`;
       if (b.a) url += `&a=${encodeURIComponent(b.a)}`;
       if (r.split(",").length === 6) url += `&r=${r}&exact=1`;
       return url;
@@ -442,7 +442,10 @@
         const res = await fetch(ASK_URL + "?ask=" + encodeURIComponent(q));
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "No scores");
-        state.q = ["romance", "light", "series", "door", "quest", "reread"].map(k => Number(data[k]));
+        state.q = ["romance", "light", "series", "door", "quest", "reread"].map(k => {
+          const n = Number(data[k]);
+          return n >= 1 && n <= 5 ? n : 3;
+        });
         paint("q");
         show("quiz");
         note.textContent = "Sliders set. Matches are below.";
@@ -535,17 +538,6 @@
       if (parts.length !== 6 || parts.some(n => !n || n < 1 || n > 5)) return null;
       return parts;
     }
-    function liftSentenceResults() {
-      const ask = document.querySelector(".ask-box");
-      const results = document.getElementById("results");
-      const more = document.getElementById("more");
-      const status = document.getElementById("status");
-      if (!ask || !results || results.dataset.lifted === "1") return;
-      ask.insertAdjacentElement("afterend", results);
-      if (more) results.insertAdjacentElement("afterend", more);
-      if (status) results.insertAdjacentElement("beforebegin", status);
-      results.dataset.lifted = "1";
-    }
     function applyDeepLink() {
       const params = new URLSearchParams(location.search);
       const said = params.get("said") || params.get("q");
@@ -590,7 +582,7 @@
       return true;
     }
     function vibeUrl() {
-      return "https://www.bookglitter.com/quiz?r=" + state.q.join(",") + "&tab=quiz";
+      return "https://www.bookglitter.com/sliders?r=" + state.q.join(",") + "&tab=quiz";
     }
     function writeQuizLink() {
       const url = new URL(location.href);
@@ -793,7 +785,7 @@
         const cached = sessionStorage.getItem(key);
         if (cached) return JSON.parse(cached);
       } catch (err) {}
-      const stemmed = subject.split(" ").map(w => w.replace(/s$/, "")).join(" ");
+      const stemmed = subject.split(" ").map(w => w.replace(/es$/, "").replace(/s$/, "")).join(" ");
       const words = stemmed.split(" ").filter(w => w.length > 2);
       const q = encodeURIComponent('"' + stemmed + '" romance');
       const url = "https://www.googleapis.com/books/v1/volumes?q=" + q + "&maxResults=40&printType=books&langRestrict=en";
@@ -828,7 +820,6 @@
       const gen = ++subjectGen;
       const note = document.createElement("p");
       note.className = "hint subject-note";
-      note.className = "hint";
       note.textContent = "Checking Google Books descriptions for “" + subject + "”…";
       box.insertAdjacentElement("afterbegin", note);
       try {
