@@ -264,7 +264,7 @@
       <div class="ask-box">
         <label for="ask-sentence">Describe the book you want</label>
         <textarea id="ask-sentence" maxlength="280" placeholder="cozy closed-door small town, one book"></textarea>
-        <button class="go" id="ask-go" type="button">Match this sentence</button>
+        <button class="go" id="ask-go" type="button">Glitter my next read</button>
         <p class="hint" id="ask-note"></p>
       </div>
       <div class="board" id="quiz-board"></div>
@@ -278,7 +278,7 @@
       </div>
       <div class="actions">
         <button class="reset" id="reset-quiz" type="button">Start over</button>
-        <button class="go" id="run-quiz" type="button">Find my next book</button>
+        <button class="go" id="run-quiz" type="button">Glitter my next read</button>
       </div>
       <p class="hint" id="vibe-line" hidden>
         <button type="button" class="reset" id="copy-vibe">Share this vibe</button>
@@ -304,7 +304,7 @@
       <div class="board" id="browse-board"></div>
       <div class="actions">
         <button class="reset" id="reset-browse" type="button">Start over</button>
-        <button class="go" id="run-browse" type="button">Apply filters</button>
+        <button class="go" id="run-browse" type="button">Glitter my next read</button>
       </div>
     </div>
     <p class="status" id="status">Loading the library…</p>
@@ -840,24 +840,25 @@
         const a = normTitle(b.a);
         return a === asked || a.indexOf(asked) !== -1 || asked.indexOf(a) !== -1;
       }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
-      function pin(label, books) {
+      function pin(node) {
+        const gems = box.querySelector(".gems");
+        if (gems) gems.insertAdjacentElement("beforebegin", node);
+        else box.insertAdjacentElement("afterbegin", node);
+      }
+      function pinBooks(label, books) {
         if (!books.length) return;
         const block = document.createElement("div");
         block.className = "title-block";
         block.innerHTML = "<h2>" + label + "</h2>" + renderList(books.slice(0, 6), null, "quiz");
-        const gems = box.querySelector(".gems");
-        if (gems) gems.insertAdjacentElement("afterend", block);
-        else box.insertAdjacentElement("afterbegin", block);
+        pin(block);
       }
-      pin("Title match", titleHits);
-      pin("Author match", authorHits);
+      pinBooks("Title match", titleHits);
+      pinBooks("Author match", authorHits);
       if (titleHits.length || authorHits.length) {
         const vibe = document.createElement("p");
         vibe.className = "hint title-block";
         vibe.textContent = "Slider matches for that sentence are below.";
-        const gems = box.querySelector(".gems");
-        if (gems) gems.insertAdjacentElement("afterend", vibe);
-        else box.insertAdjacentElement("afterbegin", vibe);
+        pin(vibe);
         hydrateCovers();
         return;
       }
