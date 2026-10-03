@@ -254,7 +254,7 @@
 <body>
   <div class="wrap">
     <h1 id="widget-title">Sunday Sliders</h1>
-    <p class="sub" id="widget-sub">Pick a vibe, then find the books.</p>
+    <p class="sub" id="widget-sub">Pick a vibe, then find the books. If a book has a movie or series, Watch the movie or Watch the series shows on that result.</p>
     <div class="tabs">
       <button class="tab on" id="tab-quiz" type="button">Sliders</button>
       <button class="tab" id="tab-browse" type="button">Search a title</button>
@@ -828,12 +828,42 @@
       const said = typed || (new URLSearchParams(location.search).get("said") || "").trim();
       const subject = subjectPhrase(said);
       const box = document.getElementById("results");
-      box.querySelectorAll(".subject-block, .subject-note").forEach(el => el.remove());
+      box.querySelectorAll(".subject-block, .subject-note, .title-block").forEach(el => el.remove());
       if (!subject || subject.length < 3) return;
       const gen = ++subjectGen;
+      const asked = normTitle(said);
+      const titleHits = BOOKS.filter(b => {
+        const t = normTitle(b.t);
+        return t === asked || t.startsWith(asked + " ") || asked.startsWith(t + " ");
+      }).sort(bookSort);
+      const authorHits = BOOKS.filter(b => {
+        const a = normTitle(b.a);
+        return a === asked || a.indexOf(asked) !== -1 || asked.indexOf(a) !== -1;
+      }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
+      function pin(label, books) {
+        if (!books.length) return;
+        const block = document.createElement("div");
+        block.className = "title-block";
+        block.innerHTML = "<h2>" + label + "</h2>" + renderList(books.slice(0, 6), null, "quiz");
+        const gems = box.querySelector(".gems");
+        if (gems) gems.insertAdjacentElement("afterend", block);
+        else box.insertAdjacentElement("afterbegin", block);
+      }
+      pin("Title match", titleHits);
+      pin("Author match", authorHits);
+      if (titleHits.length || authorHits.length) {
+        const vibe = document.createElement("p");
+        vibe.className = "hint title-block";
+        vibe.textContent = "Slider matches for that sentence are below.";
+        const gems = box.querySelector(".gems");
+        if (gems) gems.insertAdjacentElement("afterend", vibe);
+        else box.insertAdjacentElement("afterbegin", vibe);
+        hydrateCovers();
+        return;
+      }
       const note = document.createElement("p");
       note.className = "hint subject-note";
-      note.textContent = "Checking Google Books descriptions for “" + subject + "”…";
+      note.textContent = "Also checking Google Books descriptions, not titles, for “" + subject + "”…";
       box.insertAdjacentElement("afterbegin", note);
       try {
         const found = await googleSubject(subject);
@@ -846,7 +876,8 @@
           const bookWords = normTitle(b.t).split(" ");
           return words.some(w => bookWords.indexOf(w) !== -1);
         }));
-        const picked = (hits.length ? hits : loose);
+        const pinned = new Set(titleHits.map(b => b.t + "|" + b.a));
+        const picked = (hits.length ? hits : loose).filter(b => !pinned.has(b.t + "|" + b.a));
         picked.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
         note.remove();
         box.querySelectorAll(".subject-block, .subject-note").forEach(el => el.remove());
@@ -858,9 +889,9 @@
             const snippet = g && g.snippet ? "<p class=\"hint\">" + escapeHtml(g.snippet) + "</p>" : "";
             return renderList([b], want, "quiz").replace("</article>", snippet + "</article>");
           }).join("");
-          block.innerHTML = "<h2>Books whose description mentions " + escapeHtml(subject) + "</h2>" + cards;
+          block.innerHTML = "<h2>Description match</h2><p class=\"hint\">This looks through Google Books descriptions, not titles.</p>" + cards;
         } else {
-          block.innerHTML = "<p class=\"hint\">No Google Books description mentioned \"" + escapeHtml(subject) + "\" for a book already in the library. Slider matches are below.</p>";
+          block.innerHTML = "<p class=\"hint\">This search looks through Google Books descriptions, not titles. No description already in the library mentioned \"" + escapeHtml(subject) + "\". " + (titleHits.length ? "The title match is above. " : "") + "Slider matches are below.</p>";
         }
         const gems = box.querySelector(".gems");
         if (gems) gems.insertAdjacentElement("afterend", block);
