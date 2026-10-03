@@ -198,7 +198,8 @@
       background: transparent; color: var(--silver);
     }
     .share-actions .primary { background: var(--purple-2); border-color: var(--purple); color: #fff; }
-    .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; }
+    .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; display: block; }
+    .watch-line { color: var(--purple); font-size: .82rem; margin: 0 0 6px; display: inline-block; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .more {
       display: block; margin: 14px auto 0; background: transparent; color: var(--silver);
@@ -333,7 +334,7 @@
     const AMAZON_TAG = "bookglitter-20";
     const PAGE_SIZE = 30;
     const COVER_CONCURRENCY = 6;
-    const BOOKS_CACHE_KEY = "bookglitter-books-v2";
+    const BOOKS_CACHE_KEY = "bookglitter-books-v3";
     const BOOKS_CACHE_MS = 15 * 60 * 1000;
     const coverCache = {};
     let coverGen = 0;
@@ -379,6 +380,14 @@
         ? `${series} series ${author}`.trim()
         : `books by ${author}`.trim();
       return `https://www.amazon.com/s?k=${encodeURIComponent(q)}&i=stripbooks&tag=${AMAZON_TAG}`;
+    }
+    function watchAmazon(b) {
+      const raw = (b.su || "").trim();
+      return raw ? affUrl(raw) : "";
+    }
+    function watchLabel(b) {
+      const text = `${b.sc || ""} ${b.su || ""}`.toLowerCase();
+      return /series/.test(text) ? "Watch the series" : "Watch the movie";
     }
     function seriesLabel(b) {
       const series = (b.sn || "").trim();
@@ -702,6 +711,7 @@
         const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
         const seriesHref = seriesAmazon(b);
+        const watchHref = watchAmazon(b);
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
@@ -709,7 +719,10 @@
         const seriesLine = series
           ? `<a class="series-line" href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(series)}</a>`
           : "";
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
+        const watchLine = watchHref
+          ? `<a class="watch-line" href="${escapeHtml(watchHref)}" target="_blank" rel="sponsored noopener">${watchLabel(b)} <span class="shop-hint">Amazon ↗</span></a>`
+          : "";
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
