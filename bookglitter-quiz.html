@@ -817,17 +817,23 @@
       const last = String(bookAuthor || "").toLowerCase().split(" ").filter(Boolean).pop();
       return !!(last && last.length > 2 && blob.indexOf(last) !== -1);
     }
+    let subjectGen = 0;
     async function addSubjectMatches(want) {
-      const said = (new URLSearchParams(location.search).get("said") || (document.getElementById("ask-sentence") || {}).value || "").trim();
+      const typed = ((document.getElementById("ask-sentence") || {}).value || "").trim();
+      const said = typed || (new URLSearchParams(location.search).get("said") || "").trim();
       const subject = subjectPhrase(said);
-      if (!subject || subject.length < 3) return;
       const box = document.getElementById("results");
+      box.querySelectorAll(".subject-block, .subject-note").forEach(el => el.remove());
+      if (!subject || subject.length < 3) return;
+      const gen = ++subjectGen;
       const note = document.createElement("p");
+      note.className = "hint subject-note";
       note.className = "hint";
       note.textContent = "Checking Google Books descriptions for “" + subject + "”…";
       box.insertAdjacentElement("afterbegin", note);
       try {
         const found = await googleSubject(subject);
+        if (gen !== subjectGen) return;
         const hits = BOOKS.filter(b => found.some(g => titleHit(g.title, b.t) || (authorHit(g.authors, b.a) && titleHit(g.title, b.t))));
         const loose = BOOKS.filter(b => found.some(g => {
           if (titleHit(g.title, b.t)) return true;
@@ -839,6 +845,7 @@
         const picked = (hits.length ? hits : loose);
         picked.sort((a, b) => distance(a, want) - distance(b, want) || bookSort(a, b));
         note.remove();
+        box.querySelectorAll(".subject-block, .subject-note").forEach(el => el.remove());
         const block = document.createElement("div");
         block.className = "subject-block";
         if (picked.length) {
