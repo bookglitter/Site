@@ -281,7 +281,7 @@
         <button class="go" id="run-quiz" type="button">Glitter my next read</button>
       </div>
       <p class="hint" id="vibe-line" hidden>
-        <button type="button" class="reset" id="copy-vibe">Share this vibe</button>
+        <button type="button" class="reset" id="copy-vibe">Copy link to these results</button>
         <span id="vibe-note"></span>
       </p>
     </div>
@@ -686,7 +686,7 @@
       await Promise.all(Array.from({ length: n }, worker));
     }
     function gemsCard() {
-      return `<div class="gems"><p>Save this vibe. One email after each Sunday video, with books that sit on sliders like these.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a></div>`;
+      return `<div class="gems"><p>Save this list. One email after each Sunday video, with books that sit on these sliders.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a> <button type="button" class="reset" id="copy-vibe-results">Copy link to these results</button> <span id="vibe-note-results"></span></div>`;
     }
     function renderList(list, want, mode) {
       return list.map(b => {
@@ -1111,16 +1111,29 @@
           }
         }
       } catch (err) {}
-      try {
+      async function fetchBooks() {
         const res = await fetch(DATA_URL, { cache: "no-store" });
         if (!res.ok) throw new Error(res.status);
-        const fresh = await res.json();
+        return res.json();
+      }
+      try {
+        const fresh = await fetchBooks();
         applyBooks(fresh, false);
         try {
           localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
         } catch (err) {}
       } catch (err) {
-        if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
+        if (!BOOKS.length) status.textContent = "Loading the library…";
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+          const fresh = await fetchBooks();
+          applyBooks(fresh, false);
+          try {
+            localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
+          } catch (err2) {}
+        } catch (err2) {
+          if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
+        }
       }
     }
     document.getElementById("results").addEventListener("click", e => {
@@ -1129,16 +1142,21 @@
       const book = BOOKS.find(b => b.t === btn.dataset.title && b.a === btn.dataset.author);
       if (book) moreLike(book);
     });
-    document.getElementById("copy-vibe").onclick = async () => {
-      const note = document.getElementById("vibe-note");
+    async function copyResultsLink(note) {
       const link = vibeUrl();
       try {
         await navigator.clipboard.writeText(link);
-        note.textContent = " Copied. Send that link — it opens this vibe.";
+        if (note) note.textContent = " Copied. Send that link. It opens these results.";
       } catch (err) {
-        note.textContent = " " + link;
+        if (note) note.textContent = " " + link;
       }
-    };
+    }
+    document.getElementById("copy-vibe").onclick = () => copyResultsLink(document.getElementById("vibe-note"));
+    document.getElementById("results").addEventListener("click", async (e) => {
+      const btn = e.target.closest("#copy-vibe-results");
+      if (!btn) return;
+      copyResultsLink(document.getElementById("vibe-note-results"));
+    });
     (function () {
       const params = new URLSearchParams(location.search);
       const said = params.get("said") || params.get("q");
