@@ -624,11 +624,9 @@
     }
     function coverEl(b) {
       const stored = String(b.c || "").trim();
-      if (stored) {
-        return `<div class="cover-wrap has-img"><img class="show" alt="" src="${escapeHtml(stored)}" /></div>`;
-      }
       const key = coverKey(b.t, b.a);
-      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"><span class="ph">Coming soon</span><img alt="" /></div>`;
+      const saved = stored ? ` data-stored="${escapeHtml(stored)}"` : "";
+      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"${saved}><span class="ph">Coming soon</span><img alt="" /></div>`;
     }
     function matchPct(book, want) {
       if (!want || !want.some(v => v)) return null;
@@ -661,6 +659,30 @@
       }
       return "";
     }
+    function coverIsBlank(img) {
+      return !img.naturalWidth || img.naturalWidth < 20 || img.naturalHeight < 20;
+    }
+    function showCover(img, wrap, url) {
+      return new Promise(resolve => {
+        img.onload = () => {
+          if (coverIsBlank(img)) {
+            img.classList.remove("show");
+            wrap.classList.remove("has-img");
+            resolve(false);
+            return;
+          }
+          img.classList.add("show");
+          wrap.classList.add("has-img");
+          resolve(true);
+        };
+        img.onerror = () => {
+          img.classList.remove("show");
+          wrap.classList.remove("has-img");
+          resolve(false);
+        };
+        img.src = url;
+      });
+    }
     async function hydrateCovers() {
       const gen = ++coverGen;
       const wraps = [...document.querySelectorAll(".cover-wrap[data-cover]")];
@@ -673,12 +695,17 @@
           const img = wrap.querySelector("img");
           if (!img) continue;
           try {
+            const stored = wrap.dataset.stored || "";
+            if (stored) {
+              const ok = await showCover(img, wrap, stored);
+              if (gen !== coverGen) return;
+              if (ok) continue;
+            }
             if (coverCache[key] === undefined) coverCache[key] = await lookupCover(t, a);
             if (gen !== coverGen) return;
-            if (!coverCache[key]) continue;
-            img.onload = () => { img.classList.add("show"); wrap.classList.add("has-img"); };
-            img.onerror = () => { coverCache[key] = ""; img.classList.remove("show"); wrap.classList.remove("has-img"); };
-            img.src = coverCache[key];
+            if (!coverCache[key] || coverCache[key] === stored) continue;
+            const ok = await showCover(img, wrap, coverCache[key]);
+            if (!ok) coverCache[key] = "";
           } catch (e) {}
         }
       }
