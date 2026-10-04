@@ -793,27 +793,38 @@
       return g === b || g.startsWith(b + " ") || b.startsWith(g + " ");
     }
     async function googleSubject(subject) {
-      const key = "bg-subject-desc:" + subject;
+      const key = "bg-subject-desc-v2:" + subject;
       try {
         const cached = sessionStorage.getItem(key);
         if (cached) return JSON.parse(cached);
       } catch (err) {}
       const stemmed = subject.split(" ").map(w => w.replace(/es$/, "").replace(/s$/, "")).join(" ");
       const words = stemmed.split(" ").filter(w => w.length > 2);
-      const q = encodeURIComponent('"' + stemmed + '" romance');
-      const url = "https://www.googleapis.com/books/v1/volumes?q=" + q + "&maxResults=40&printType=books&langRestrict=en";
-      const data = await fetch(url).then(r => r.json());
+      const queries = ['"' + stemmed + '"', '"' + stemmed + '" romance'];
       const hits = [];
-      (data.items || []).forEach(item => {
-        const info = item.volumeInfo || {};
-        const description = info.description || "";
-        const blob = description.toLowerCase();
-        if (!words.length || !words.every(w => blob.indexOf(w) !== -1)) return;
-        if (!info.title) return;
-        const at = blob.indexOf(words[0]);
-        const snippet = description.slice(Math.max(0, at - 40), at + 110).replace(/\s+/g, " ").trim();
-        hits.push({ title: info.title, authors: info.authors || [], snippet: snippet });
-      });
+      const seen = {};
+      for (let qi = 0; qi < queries.length; qi++) {
+        for (let start = 0; start < 200; start += 40) {
+          const url = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(queries[qi]) + "&startIndex=" + start + "&maxResults=40&printType=books&langRestrict=en";
+          const data = await fetch(url).then(r => r.json());
+          const items = data.items || [];
+          items.forEach(item => {
+            const info = item.volumeInfo || {};
+            const description = info.description || "";
+            const blob = description.toLowerCase();
+            if (!words.length || !words.every(w => blob.indexOf(w) !== -1)) return;
+            if (!info.title) return;
+            const id = normTitle(info.title) + "|" + (info.authors || []).join(" ").toLowerCase();
+            if (seen[id]) return;
+            seen[id] = true;
+            const at = blob.indexOf(words[0]);
+            const snippet = description.slice(Math.max(0, at - 40), at + 110).replace(/\s+/g, " ").trim();
+            hits.push({ title: info.title, authors: info.authors || [], snippet: snippet });
+          });
+          if (items.length < 40) break;
+        }
+        if (hits.length >= 12) break;
+      }
       try { sessionStorage.setItem(key, JSON.stringify(hits)); } catch (err) {}
       return hits;
     }
@@ -892,7 +903,7 @@
           }).join("");
           block.innerHTML = "<h2>Description match</h2><p class=\"hint\">This looks through Google Books descriptions, not titles.</p>" + cards;
         } else {
-          block.innerHTML = "<p class=\"hint\">This search looks through Google Books descriptions, not titles. No description already in the library mentioned \"" + escapeHtml(subject) + "\". " + (titleHits.length ? "The title match is above. " : "") + "Slider matches are below.</p>";
+          block.innerHTML = "<p class=\"hint\">No Book Glitter title came back in the Google Books description search for \"" + escapeHtml(subject) + "\". A book page can still contain that word. Slider matches are below.</p>";
         }
         const gems = box.querySelector(".gems");
         if (gems) gems.insertAdjacentElement("afterend", block);
