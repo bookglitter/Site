@@ -286,7 +286,7 @@
       </p>
     </div>
     <div id="panel-browse" hidden>
-      <input class="search-lead" type="search" id="search" placeholder="Type a book you liked" />
+      <input class="search-lead" type="search" id="search" placeholder="Type a title, author, or a bit of the plot" />
       <div class="filters">
         <select id="b-stand">
           <option value="">Standalone or series</option>
@@ -334,7 +334,7 @@
     const AMAZON_TAG = "bookglitter-20";
     const PAGE_SIZE = 30;
     const COVER_CONCURRENCY = 6;
-    const BOOKS_CACHE_KEY = "bookglitter-books-v3";
+    const BOOKS_CACHE_KEY = "bookglitter-books-v4";
     const BOOKS_CACHE_MS = 15 * 60 * 1000;
     const coverCache = {};
     let coverGen = 0;
@@ -967,7 +967,7 @@
       let list = BOOKS.filter(b => {
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
-        if (q && !(`${b.t} ${b.a} ${b.sn || ""}`.toLowerCase().includes(q))) return false;
+        if (q && !(`${b.t} ${b.a} ${b.sn || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
         if (!want.some(v => v)) return true;
         if (state.exact) return want.every((v, i) => !v || Number(b.r[i] || 3) === v);
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
