@@ -730,7 +730,7 @@
       await Promise.all(Array.from({ length: n }, worker));
     }
     function gemsCard() {
-      return `<div class="gems"><p>Save this list. One email after each Sunday video, with books that sit on these sliders.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a> <button type="button" class="reset" id="copy-vibe-results">Copy link to these results</button> <span id="vibe-note-results"></span></div>`;
+      return `<div class="gems"><p>Save this list. One email after each Sunday video, with books that sit on these sliders.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a></div>`;
     }
     function renderList(list, want, mode) {
       return list.map(b => {
@@ -998,7 +998,7 @@
           ? "No books in that standalone/subgenre filter. 10 closest across the library instead."
           : "Nothing sits on those exact sliders. 10 closest instead.")
         : want.every(v => v === 3)
-        ? `${scored.length} closest to the sliders you left in the middle.`
+        ? `${scored.length} closest to these sliders.`
         : `${scored.length} closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
       writeQuizLink();
