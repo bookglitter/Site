@@ -916,10 +916,12 @@
       }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a) && !authorHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
       pinBooks("In the book description", plotHits);
       if (titleHits.length || authorHits.length || plotHits.length) {
-        const vibe = document.createElement("p");
-        vibe.className = "hint title-block";
-        vibe.textContent = "Slider matches for that sentence are below.";
-        pin(vibe);
+        const vibe = document.createElement("div");
+        vibe.className = "title-block";
+        vibe.innerHTML = "<h2>Slider matches</h2>";
+        const gems = box.querySelector(".gems");
+        if (gems) gems.insertAdjacentElement("afterend", vibe);
+        else pin(vibe);
         hydrateCovers();
         return;
       }
