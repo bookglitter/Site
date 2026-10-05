@@ -896,8 +896,8 @@
         return a === asked || a.indexOf(asked) !== -1 || asked.indexOf(a) !== -1;
       }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
       function pin(node) {
-        const gems = box.querySelector(".gems");
-        if (gems) gems.insertAdjacentElement("beforebegin", node);
+        const firstBook = box.querySelector(":scope > article");
+        if (firstBook) firstBook.insertAdjacentElement("beforebegin", node);
         else box.insertAdjacentElement("afterbegin", node);
       }
       function pinBooks(label, books) {
@@ -907,8 +907,8 @@
         block.innerHTML = "<h2>" + label + "</h2>" + renderList(books.slice(0, 6), null, "quiz");
         pin(block);
       }
-      pinBooks("Title match", titleHits);
-      pinBooks("Author match", authorHits);
+      pinBooks(titleHits.length === 1 ? "Title match" : "Title matches", titleHits);
+      pinBooks(authorHits.length === 1 ? "Author match" : "Author matches", authorHits);
       const words = subject.split(" ").filter(w => w.length > 2);
       const plotHits = BOOKS.filter(b => {
         const blob = String(b.b || "").toLowerCase();
@@ -916,12 +916,13 @@
       }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a) && !authorHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
       pinBooks("In the book description", plotHits);
       if (titleHits.length || authorHits.length || plotHits.length) {
+        const sliderCount = box.querySelectorAll(":scope > article").length;
         const vibe = document.createElement("div");
         vibe.className = "title-block";
-        vibe.innerHTML = "<h2>Slider matches</h2>";
+        vibe.innerHTML = "<h2>" + (sliderCount === 1 ? "Slider match" : "Slider matches") + "</h2>";
+        pin(vibe);
         const gems = box.querySelector(".gems");
-        if (gems) gems.insertAdjacentElement("afterend", vibe);
-        else pin(vibe);
+        if (gems) box.appendChild(gems);
         hydrateCovers();
         return;
       }
@@ -957,9 +958,19 @@
         } else {
           block.innerHTML = "<p class=\"hint\">No Book Glitter title came back in the Google Books description search for \"" + escapeHtml(subject) + "\". A book page can still contain that word. Slider matches are below.</p>";
         }
-        const gems = box.querySelector(".gems");
-        if (gems) gems.insertAdjacentElement("afterend", block);
+        const firstBook = box.querySelector(":scope > article");
+        if (firstBook) firstBook.insertAdjacentElement("beforebegin", block);
         else box.insertAdjacentElement("afterbegin", block);
+        if (![...box.querySelectorAll("h2")].some(h => h.textContent.indexOf("Slider match") === 0)) {
+          const sliderCount = box.querySelectorAll(":scope > article").length;
+          const vibe = document.createElement("div");
+          vibe.className = "title-block";
+          vibe.innerHTML = "<h2>" + (sliderCount === 1 ? "Slider match" : "Slider matches") + "</h2>";
+          const book = box.querySelector(":scope > article");
+          if (book) book.insertAdjacentElement("beforebegin", vibe);
+        }
+        const gems = box.querySelector(".gems");
+        if (gems) box.appendChild(gems);
         hydrateCovers();
         if (window.parent && window.parent !== window) {
           const wrap = document.querySelector(".wrap") || document.body;
@@ -1005,7 +1016,7 @@
       document.getElementById("more").hidden = true;
       writeQuizLink();
       render(scored.map(x => x.b), want, "quiz");
-      document.getElementById("results").insertAdjacentHTML("afterbegin", gemsCard());
+      document.getElementById("results").insertAdjacentHTML("beforeend", gemsCard());
       addSubjectMatches(want);
     };
     document.getElementById("run-browse").onclick = runBrowse;
