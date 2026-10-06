@@ -713,7 +713,8 @@
           if (!img) continue;
           try {
             const stored = wrap.dataset.stored || "";
-            if (stored) {
+            const badStored = /nophoto|image.?not.?available|no_?cover/i.test(stored);
+            if (stored && !badStored) {
               const ok = await showCover(img, wrap, stored);
               if (gen !== coverGen) return;
               if (ok) continue;
@@ -909,13 +910,18 @@
       }
       pinBooks(titleHits.length === 1 ? "Title match" : "Title matches", titleHits);
       pinBooks(authorHits.length === 1 ? "Author match" : "Author matches", authorHits);
+      const seriesHits = BOOKS.filter(b => {
+        const s = normTitle(b.sn);
+        return s && (s === asked || s.indexOf(asked) !== -1 || asked.indexOf(s) !== -1);
+      }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a) && !authorHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
+      pinBooks(seriesHits.length === 1 ? "Series match" : "Series matches", seriesHits);
       const words = subject.split(" ").filter(w => w.length > 2);
       const plotHits = BOOKS.filter(b => {
         const blob = String(b.b || "").toLowerCase();
         return words.length && words.every(w => blob.indexOf(w) !== -1);
-      }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a) && !authorHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
+      }).filter(b => !titleHits.some(t => t.t === b.t && t.a === b.a) && !authorHits.some(t => t.t === b.t && t.a === b.a) && !seriesHits.some(t => t.t === b.t && t.a === b.a)).sort(bookSort);
       pinBooks("In the book description", plotHits);
-      if (titleHits.length || authorHits.length || plotHits.length) {
+      if (titleHits.length || authorHits.length || seriesHits.length || plotHits.length) {
         const sliderCount = box.querySelectorAll(":scope > article").length;
         const vibe = document.createElement("div");
         vibe.className = "title-block";
@@ -989,7 +995,7 @@
       function scorePool(pool) {
         return pool
           .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
-          .sort((a, c) => a.d - c.d || c.gr - a.gr);
+          .sort((a, c) => a.d - c.d || bookSort(a.b, c.b));
       }
       let pool = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre);
       let filteredOut = false;
@@ -1063,7 +1069,7 @@
       if (!browseList.length && want.some(v => v)) {
         browseList = BOOKS
           .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
-          .sort((a, c) => a.d - c.d || c.gr - a.gr)
+          .sort((a, c) => a.d - c.d || bookSort(a.b, c.b))
           .slice(0, 10)
           .map(x => x.b);
         browseShown = browseList.length;
