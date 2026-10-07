@@ -215,7 +215,9 @@
       background: transparent; color: var(--silver);
     }
     .share-actions .primary { background: var(--purple-2); border-color: var(--purple); color: #fff; }
-    .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; display: block; }
+    .series-line, .author-line { color: var(--silver); text-decoration: underline; text-underline-offset: 2px; }
+    .series-line { font-size: .82rem; margin: 0 0 6px; display: block; }
+    .author-line { font-size: inherit; }
     .watch-line { color: var(--purple); font-size: .82rem; margin: 0 0 6px; display: inline-block; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .more {
@@ -755,19 +757,20 @@
         const series = seriesLabel(b);
         const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
-        const seriesHref = seriesAmazon(b);
+        const seriesHref = seriesName ? "https://bookglitter.com/sliders?said=" + encodeURIComponent(seriesName) : "";
+        const authorHref = "https://bookglitter.com/sliders?said=" + encodeURIComponent((b.a || "").trim());
         const watchHref = watchAmazon(b);
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
           : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(siteHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
         const seriesLine = series
-          ? `<a class="series-line" href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(series)}</a>`
+          ? `<a class="series-line" href="${escapeHtml(seriesHref)}">${escapeHtml(series)}</a>`
           : "";
         const watchLine = watchHref
           ? `<a class="watch-line" href="${escapeHtml(watchHref)}" target="_blank" rel="sponsored noopener">${watchLabel(b)} <span class="shop-hint">Amazon ↗</span></a>`
           : "";
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta">${escapeHtml(b.a)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="${escapeHtml(authorHref)}">${escapeHtml(b.a)}</a> · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
