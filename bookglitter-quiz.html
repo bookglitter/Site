@@ -757,20 +757,20 @@
         const series = seriesLabel(b);
         const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
-        const seriesHref = seriesName ? "https://bookglitter.com/sliders?said=" + encodeURIComponent(seriesName) : "";
-        const authorHref = "https://bookglitter.com/sliders?said=" + encodeURIComponent((b.a || "").trim());
+        const seriesHref = seriesName ? "#series" : "";
+        const authorHref = "#author";
         const watchHref = watchAmazon(b);
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
           : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(siteHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
         const seriesLine = series
-          ? `<a class="series-line" href="${escapeHtml(seriesHref)}">${escapeHtml(series)}</a>`
+          ? `<a class="series-line" href="#series" data-find="${escapeHtml(seriesName)}">${escapeHtml(series)}</a>`
           : "";
         const watchLine = watchHref
           ? `<a class="watch-line" href="${escapeHtml(watchHref)}" target="_blank" rel="sponsored noopener">${watchLabel(b)} <span class="shop-hint">Amazon ↗</span></a>`
           : "";
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="${escapeHtml(authorHref)}">${escapeHtml(b.a)}</a> · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a> · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
@@ -1219,6 +1219,24 @@
         }
       }
     }
+
+    document.getElementById("results").addEventListener("click", (e) => {
+      const link = e.target.closest(".series-line, .author-line");
+      if (!link) return;
+      e.preventDefault();
+      const find = (link.dataset.find || "").trim();
+      if (!find) return;
+      const ask = document.getElementById("ask-sentence");
+      const search = document.getElementById("search");
+      if (ask) ask.value = find;
+      if (search) search.value = find;
+      const url = new URL(window.location.href);
+      url.searchParams.set("said", find);
+      history.replaceState(null, "", url);
+      addSubjectMatches(state.b.slice());
+      const head = document.querySelector("#results h2");
+      if (head) head.scrollIntoView({ block: "start" });
+    });
     document.getElementById("results").addEventListener("click", e => {
       const btn = e.target.closest(".more-like");
       if (!btn) return;
