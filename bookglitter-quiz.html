@@ -354,7 +354,7 @@
     const PAGE_SIZE = 30;
     const COVER_CONCURRENCY = 6;
     const BOOKS_CACHE_KEY = "bookglitter-books-v5";
-    const BOOKS_CACHE_MS = 15 * 60 * 1000;
+    const BOOKS_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
     const coverCache = {};
     let coverGen = 0;
     const SLIDERS = [
@@ -1179,41 +1179,45 @@
     };
     async function load() {
       const status = document.getElementById("status");
+      let showedCache = false;
       function applyBooks(data, fromCache) {
         BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
         fillGenres();
         status.textContent = "";
-        applyDeepLink();
+        if (!fromCache || !showedCache) applyDeepLink();
+        showedCache = true;
+      }
+      function saveBooks() {
+        try {
+          localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
+        } catch (err) {}
       }
       try {
         const raw = localStorage.getItem(BOOKS_CACHE_KEY);
         if (raw) {
           const cached = JSON.parse(raw);
-          if (cached && cached.ts && Date.now() - cached.ts < BOOKS_CACHE_MS && cached.books) {
+          if (cached && cached.books && cached.books.length) {
             applyBooks(cached.books, true);
           }
         }
       } catch (err) {}
+      if (!BOOKS.length) status.textContent = "Loading the library…";
       async function fetchBooks() {
-        const res = await fetch(DATA_URL, { cache: "no-store" });
+        const res = await fetch(DATA_URL);
         if (!res.ok) throw new Error(res.status);
         return res.json();
       }
       try {
         const fresh = await fetchBooks();
         applyBooks(fresh, false);
-        try {
-          localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
-        } catch (err) {}
+        saveBooks();
       } catch (err) {
-        if (!BOOKS.length) status.textContent = "Loading the library…";
+        if (BOOKS.length) return;
         await new Promise(r => setTimeout(r, 2000));
         try {
           const fresh = await fetchBooks();
           applyBooks(fresh, false);
-          try {
-            localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
-          } catch (err2) {}
+          saveBooks();
         } catch (err2) {
           if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
         }
@@ -1234,8 +1238,12 @@
       url.searchParams.set("said", find);
       history.replaceState(null, "", url);
       addSubjectMatches(state.b.slice());
-      const head = document.querySelector("#results h2");
-      if (head) head.scrollIntoView({ block: "start" });
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      if (window.parent && window.parent !== window) {
+        parent.postMessage({ type: "bg-top" }, "https://bookglitter.com");
+      }
     });
     document.getElementById("results").addEventListener("click", e => {
       const btn = e.target.closest(".more-like");
