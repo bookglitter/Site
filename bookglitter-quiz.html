@@ -215,10 +215,11 @@
       background: transparent; color: var(--silver);
     }
     .share-actions .primary { background: var(--purple-2); border-color: var(--purple); color: #fff; }
-    .series-line, .author-line { color: var(--silver); text-decoration: underline; text-underline-offset: 2px; }
-    .series-line { font-size: .82rem; margin: 0 0 6px; display: block; }
-    .author-line { font-size: inherit; }
+    .series-line { color: var(--silver); font-size: .82rem; margin: 0 0 6px; display: block; }
     .watch-line { color: var(--purple); font-size: .82rem; margin: 0 0 6px; display: inline-block; }
+    .hook { color: var(--silver); font-style: italic; font-size: .86rem; margin: 0 0 6px; }
+    .pill.trope { background: transparent; cursor: pointer; font-family: inherit; }
+    .pill.trope:hover { border-color: var(--purple); color: #fff; }
     .err { color: #f0b7c2; font-family: system-ui, sans-serif; }
     .more {
       display: block; margin: 14px auto 0; background: transparent; color: var(--silver);
@@ -313,13 +314,14 @@
           <option value="N">Series only</option>
         </select>
         <select id="b-genre"><option value="">Any subgenre</option></select>
+        <select id="b-trope"><option value="">Any trope</option></select>
         <select id="b-sort">
           <option value="gr">Sort: Goodreads</option>
           <option value="title">Sort: Title</option>
           <option value="year">Sort: Newest</option>
         </select>
       </div>
-      <p class="hint">Type a book you liked. Or tap More like this on a result.</p>
+      <p class="hint">Type a book you liked. Or tap More like this on a result, or tap a trope pill to filter by it.</p>
       <div class="board" id="browse-board"></div>
       <div class="actions">
         <button class="reset" id="reset-browse" type="button">Start over</button>
@@ -354,7 +356,7 @@
     const PAGE_SIZE = 30;
     const COVER_CONCURRENCY = 6;
     const BOOKS_CACHE_KEY = "bookglitter-books-v5";
-    const BOOKS_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+    const BOOKS_CACHE_MS = 15 * 60 * 1000;
     const coverCache = {};
     let coverGen = 0;
     const SLIDERS = [
@@ -757,20 +759,23 @@
         const series = seriesLabel(b);
         const siteHref = bookSiteUrl(b);
         const bookHref = bookAmazon(b);
-        const seriesHref = seriesName ? "#series" : "";
-        const authorHref = "#author";
+        const seriesHref = seriesAmazon(b);
         const watchHref = watchAmazon(b);
         const caption = startCaption(b);
         const shareRow = mode === "quiz"
           ? `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button></div>`
           : `<div class="share-row"><button type="button" class="more-like" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">More like this</button><button type="button" class="share-open" data-caption="${escapeHtml(caption)}" data-url="${escapeHtml(siteHref)}" data-title="${escapeHtml(b.t || "")}" data-author="${escapeHtml(b.a || "")}">Share this read</button></div>`;
         const seriesLine = series
-          ? `<a class="series-line" href="#series" data-find="${escapeHtml(seriesName)}">${escapeHtml(series)}</a>`
+          ? `<a class="series-line" href="${escapeHtml(seriesHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(series)}</a>`
           : "";
         const watchLine = watchHref
           ? `<a class="watch-line" href="${escapeHtml(watchHref)}" target="_blank" rel="sponsored noopener">${watchLabel(b)} <span class="shop-hint">Amazon ↗</span></a>`
           : "";
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a> · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${shareRow}</div></article>`;
+        const names = [b.a].concat((b.ca || "").split(";").map(s => s.trim()).filter(Boolean)).filter(Boolean);
+        const byline = names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : (names[0] || "");
+        const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
+        const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta">${escapeHtml(byline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode) {
@@ -782,6 +787,29 @@
       }
       box.innerHTML = renderList(list, want, mode);
       hydrateCovers();
+    }
+    function tropeList(b) {
+      return (b.tp || "").split(";").map(s => s.trim()).filter(Boolean);
+    }
+    function fillTropes() {
+      const counts = {}, casings = {};
+      BOOKS.forEach(b => tropeList(b).forEach(t => {
+        const k = t.toLowerCase();
+        counts[k] = (counts[k] || 0) + 1;
+        casings[k] = casings[k] || {};
+        casings[k][t] = (casings[k][t] || 0) + 1;
+      }));
+      const sel = document.getElementById("b-trope");
+      const current = sel.value;
+      sel.querySelectorAll("option:not(:first-child)").forEach(o => o.remove());
+      Object.keys(counts).filter(k => counts[k] >= 5).sort().forEach(k => {
+        const label = Object.keys(casings[k]).sort((x, y) => casings[k][y] - casings[k][x])[0];
+        const o = document.createElement("option");
+        o.value = k;
+        o.textContent = label;
+        sel.appendChild(o);
+      });
+      if ([...sel.options].some(o => o.value === current)) sel.value = current;
     }
     function fillGenres() {
       const genres = [...new Set(BOOKS.map(b => b.g).filter(Boolean))].sort();
@@ -818,6 +846,7 @@
       document.getElementById("search").value = "";
       document.getElementById("b-stand").value = "";
       document.getElementById("b-genre").value = "";
+      document.getElementById("b-trope").value = "";
       document.getElementById("b-sort").value = "gr";
       paint("b");
       clearResults();
@@ -1034,12 +1063,14 @@
       const want = state.b.slice();
       const stand = document.getElementById("b-stand").value;
       const genre = document.getElementById("b-genre").value;
+      const trope = document.getElementById("b-trope").value;
       const q = document.getElementById("search").value.trim().toLowerCase();
       const sort = document.getElementById("b-sort").value;
       let list = BOOKS.filter(b => {
         if (stand && b.s !== stand) return false;
         if (genre && b.g !== genre) return false;
-        if (q && !(`${b.t} ${b.a} ${b.sn || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
+        if (trope && !tropeList(b).some(t => t.toLowerCase() === trope)) return false;
+        if (q && !(`${b.t} ${b.a} ${b.ca || ""} ${b.sn || ""} ${b.tp || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
         if (!want.some(v => v)) return true;
         if (state.exact) return want.every((v, i) => !v || Number(b.r[i] || 3) === v);
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
@@ -1179,77 +1210,68 @@
     };
     async function load() {
       const status = document.getElementById("status");
-      let showedCache = false;
       function applyBooks(data, fromCache) {
         BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
         fillGenres();
+        fillTropes();
         status.textContent = "";
-        if (!fromCache || !showedCache) applyDeepLink();
-        showedCache = true;
-      }
-      function saveBooks() {
-        try {
-          localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
-        } catch (err) {}
+        applyDeepLink();
       }
       try {
         const raw = localStorage.getItem(BOOKS_CACHE_KEY);
         if (raw) {
           const cached = JSON.parse(raw);
-          if (cached && cached.books && cached.books.length) {
+          if (cached && cached.ts && Date.now() - cached.ts < BOOKS_CACHE_MS && cached.books) {
             applyBooks(cached.books, true);
           }
         }
       } catch (err) {}
-      if (!BOOKS.length) status.textContent = "Loading the library…";
       async function fetchBooks() {
-        const res = await fetch(DATA_URL);
+        const res = await fetch(DATA_URL, { cache: "no-store" });
         if (!res.ok) throw new Error(res.status);
         return res.json();
       }
       try {
         const fresh = await fetchBooks();
         applyBooks(fresh, false);
-        saveBooks();
+        try {
+          localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
+        } catch (err) {}
       } catch (err) {
-        if (BOOKS.length) return;
+        if (!BOOKS.length) status.textContent = "Loading the library…";
         await new Promise(r => setTimeout(r, 2000));
         try {
           const fresh = await fetchBooks();
           applyBooks(fresh, false);
-          saveBooks();
+          try {
+            localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ ts: Date.now(), books: BOOKS }));
+          } catch (err2) {}
         } catch (err2) {
           if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
         }
       }
     }
-
-    document.getElementById("results").addEventListener("click", (e) => {
-      const link = e.target.closest(".series-line, .author-line");
-      if (!link) return;
-      e.preventDefault();
-      const find = (link.dataset.find || "").trim();
-      if (!find) return;
-      const ask = document.getElementById("ask-sentence");
-      const search = document.getElementById("search");
-      if (ask) ask.value = find;
-      if (search) search.value = find;
-      const url = new URL(window.location.href);
-      url.searchParams.set("said", find);
-      history.replaceState(null, "", url);
-      addSubjectMatches(state.b.slice());
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      if (window.parent && window.parent !== window) {
-        parent.postMessage({ type: "bg-top" }, "https://bookglitter.com");
-      }
-    });
     document.getElementById("results").addEventListener("click", e => {
       const btn = e.target.closest(".more-like");
       if (!btn) return;
       const book = BOOKS.find(b => b.t === btn.dataset.title && b.a === btn.dataset.author);
       if (book) moreLike(book);
+    });
+    document.getElementById("results").addEventListener("click", e => {
+      const btn = e.target.closest(".trope");
+      if (!btn) return;
+      const trope = btn.dataset.trope;
+      if (!trope) return;
+      show("browse");
+      const sel = document.getElementById("b-trope");
+      if (![...sel.options].some(o => o.value === trope)) {
+        const o = document.createElement("option");
+        o.value = trope;
+        o.textContent = btn.textContent;
+        sel.appendChild(o);
+      }
+      sel.value = trope;
+      runBrowse();
     });
     async function copyResultsLink(note) {
       const link = vibeUrl();
