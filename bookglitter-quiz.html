@@ -276,7 +276,7 @@
 <body>
   <div class="wrap">
     <h1 id="widget-title">Sunday Sliders</h1>
-    <p class="sub" id="widget-sub">Pick a vibe, then find the books. If a book has a movie or series, Watch the movie or Watch the series shows on that result.</p>
+    <p class="sub" id="widget-sub">Pick a vibe, then find the books. See a 'Watch the movie' or 'Watch the series' button? Tap it to find that film on Amazon.</p>
     <div class="tabs">
       <button class="tab on" id="tab-quiz" type="button">Sliders</button>
       <button class="tab" id="tab-browse" type="button">Search a title</button>
@@ -649,7 +649,7 @@
       const stored = String(b.c || "").trim();
       const key = coverKey(b.t, b.a);
       const saved = stored ? ` data-stored="${escapeHtml(stored)}"` : "";
-      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"${saved}><span class="ph">Coming soon</span><img alt="" /></div>`;
+      return `<div class="cover-wrap" data-cover="${escapeHtml(key)}"${saved}><span class="ph">Loading the sparkle…</span><img alt="" /></div>`;
     }
     function matchPct(book, want) {
       if (!want || !want.some(v => v)) return null;
@@ -781,11 +781,11 @@
         return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
-    function render(list, want, mode) {
+    function render(list, want, mode, emptyText) {
       coverGen += 1;
       const box = document.getElementById("results");
       if (!list.length) {
-        box.innerHTML = `<p class="err">No books match those sliders. Loosen one filter and try again.</p>`;
+        box.innerHTML = `<p class="err">${emptyText || "No books match those sliders. Loosen one filter and try again."}</p>`;
         return;
       }
       box.innerHTML = renderList(list, want, mode);
@@ -1023,14 +1023,35 @@
       }
     }
 
+    function capAuthors(items, limit, getBook) {
+      const counts = {};
+      const picked = [];
+      const rest = [];
+      for (const x of items) {
+        const key = (getBook(x).a || "").trim().toLowerCase();
+        if ((counts[key] || 0) < 2 && picked.length < limit) {
+          counts[key] = (counts[key] || 0) + 1;
+          picked.push(x);
+        } else {
+          rest.push(x);
+        }
+      }
+      for (const x of rest) {
+        if (picked.length >= limit) break;
+        picked.push(x);
+      }
+      return picked;
+    }
     document.getElementById("run-quiz").onclick = () => {
       const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
       function scorePool(pool) {
+        const preferFirsts = want[2] <= 2;
+        const mid = b => (preferFirsts && (b.sn || "").trim() && parseFloat(b.n) > 1) ? 1 : 0;
         return pool
           .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
-          .sort((a, c) => a.d - c.d || bookSort(a.b, c.b));
+          .sort((a, c) => a.d - c.d || mid(a.b) - mid(c.b) || bookSort(a.b, c.b));
       }
       let pool = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre);
       let filteredOut = false;
@@ -1043,9 +1064,9 @@
       let fallback = false;
       if (!closeEnough.length) {
         fallback = true;
-        scored = scorePool(BOOKS).slice(0, 10);
+        scored = capAuthors(scorePool(BOOKS), 10, x => x.b);
       } else {
-        scored = closeEnough.slice(0, 12);
+        scored = capAuthors(closeEnough, 12, x => x.b);
       }
       document.getElementById("status").textContent = fallback
         ? (filteredOut
@@ -1068,6 +1089,7 @@
       const genre = document.getElementById("b-genre").value;
       const trope = document.getElementById("b-trope").value;
       const q = document.getElementById("search").value.trim().toLowerCase();
+      browseQ = q;
       const sort = document.getElementById("b-sort").value;
       let list = BOOKS.filter(b => {
         if (stand && b.s !== stand) return false;
@@ -1104,17 +1126,20 @@
       browseShown = Math.min(PAGE_SIZE, list.length);
       browseFallback = false;
       if (!browseList.length && want.some(v => v)) {
-        browseList = BOOKS
-          .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
-          .sort((a, c) => a.d - c.d || bookSort(a.b, c.b))
-          .slice(0, 10)
-          .map(x => x.b);
+        browseList = capAuthors(
+          BOOKS
+            .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+            .sort((a, c) => a.d - c.d || bookSort(a.b, c.b)),
+          10,
+          x => x.b
+        ).map(x => x.b);
         browseShown = browseList.length;
         browseFallback = true;
       }
       showBrowse();
     }
     let browseFallback = false;
+    let browseQ = "";
     function showBrowse() {
       const label = browseFallback
         ? `No exact matches for those filters. 10 closest instead.`
@@ -1122,7 +1147,8 @@
         ? `${browseList.length} exact slider matches. Showing ${browseShown}.`
         : `${browseList.length} books. Showing ${browseShown}.`;
       document.getElementById("status").textContent = label;
-      render(browseList.slice(0, browseShown), state.exact ? state.b : null);
+      render(browseList.slice(0, browseShown), state.exact ? state.b : null, null,
+        browseQ ? "No luck with that title \u2014 yet! Check the spelling, try the author's name, or tap the sliders and let them hunt for you." : undefined);
       document.getElementById("more").hidden = browseShown >= browseList.length;
     }
     document.getElementById("more").onclick = () => {
