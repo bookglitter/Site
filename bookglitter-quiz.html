@@ -1091,15 +1091,25 @@
       const q = document.getElementById("search").value.trim().toLowerCase();
       browseQ = q;
       const sort = document.getElementById("b-sort").value;
-      let list = BOOKS.filter(b => {
-        if (stand && b.s !== stand) return false;
-        if (genre && b.g !== genre) return false;
-        if (trope && !tropeList(b).some(t => t.toLowerCase() === trope)) return false;
+      const passes = (b, useTrope, useGS) => {
+        if (useGS && stand && b.s !== stand) return false;
+        if (useGS && genre && b.g !== genre) return false;
+        if (useTrope && trope && !tropeList(b).some(t => t.toLowerCase() === trope)) return false;
         if (q && !(`${b.t} ${b.a} ${b.ca || ""} ${b.sn || ""} ${b.tp || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
         if (!want.some(v => v)) return true;
         if (state.exact) return want.every((v, i) => !v || Number(b.r[i] || 3) === v);
         return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
-      });
+      };
+      let list = BOOKS.filter(b => passes(b, true, true));
+      browseRelax = "";
+      if (!list.length && trope) {
+        const wider = BOOKS.filter(b => passes(b, false, true));
+        if (wider.length) { list = wider; browseRelax = "trope"; }
+      }
+      if (!list.length && (stand || genre)) {
+        const wider = BOOKS.filter(b => passes(b, false, false));
+        if (wider.length) { list = wider; browseRelax = "filters"; }
+      }
       if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
       if (sort === "year") list.sort((a, b) => (b.y || 0) - (a.y || 0));
@@ -1136,13 +1146,29 @@
         browseShown = browseList.length;
         browseFallback = true;
       }
+      browseFavorites = false;
+      if (!browseList.length) {
+        browseList = capAuthors([...BOOKS].sort((a, b) => (b.gr || 0) - (a.gr || 0)), 12, x => x);
+        browseShown = browseList.length;
+        browseFavorites = true;
+      }
       showBrowse();
     }
     let browseFallback = false;
     let browseQ = "";
+    let browseRelax = "";
+    let browseFavorites = false;
     function showBrowse() {
-      const label = browseFallback
+      const label = browseFavorites
+        ? (browseQ
+          ? "No luck with that title \u2014 yet! Check the spelling, try the author's name, or tap the sliders and let them hunt for you. Reader favorites meanwhile:"
+          : "Nothing matches those filters yet. Reader favorites meanwhile:")
+        : browseFallback
         ? `No exact matches for those filters. 10 closest instead.`
+        : browseRelax === "trope"
+        ? `No books pair that trope with the other filters, so the trope filter came off. ${browseList.length} books. Showing ${browseShown}.`
+        : browseRelax === "filters"
+        ? `That filter mix is empty, so the standalone/subgenre filters came off. ${browseList.length} books. Showing ${browseShown}.`
         : state.exact
         ? `${browseList.length} exact slider matches. Showing ${browseShown}.`
         : `${browseList.length} books. Showing ${browseShown}.`;
