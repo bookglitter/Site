@@ -261,6 +261,25 @@
     }
     .empty-state h2 { margin: 0 0 6px; }
     .empty-state p { margin: 0; color: var(--muted); font-size: .9rem; }
+    .book a.title-link .title-sep { color: var(--muted); font-family: system-ui, sans-serif; font-weight: 400; }
+    .cover-wrap:not(.has-img) {
+      background: linear-gradient(110deg, #1a2c44 35%, #263d5f 50%, #1a2c44 65%);
+      background-size: 220% 100%;
+      animation: cover-shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes cover-shimmer {
+      from { background-position: 130% 0; }
+      to { background-position: -90% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cover-wrap:not(.has-img) { animation: none; }
+    }
+    .nomatch-banner {
+      border: 1px solid var(--purple-2); border-radius: 12px; background: var(--card);
+      padding: 18px 16px; text-align: center; font-family: system-ui, sans-serif;
+    }
+    .nomatch-banner h2 { margin: 0 0 6px; font-size: 1.25rem; }
+    .nomatch-banner p { margin: 0; color: var(--muted); font-size: .9rem; }
     @media (min-width: 720px) {
       .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
       .cell { min-height: 58px; font-size: .78rem; }
@@ -785,7 +804,7 @@
         const coByline = coauthors.length === 1 ? " & " + coauthors[0] : coauthors.length > 1 ? ", " + coauthors.slice(0, -1).join(", ") + " & " + coauthors[coauthors.length - 1] : "";
         const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
         const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)} <span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${shareRow}</div></article>`;
+        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode, emptyText) {
@@ -1064,16 +1083,20 @@
       const want = state.q.slice();
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
+      // When the standalone/series dropdown is set, it decides standalone-ness,
+      // so the SERIES slider stops scoring instead of contradicting the dropdown.
+      const scoreWant = want.slice();
+      if (stand) scoreWant[2] = 0;
       function scorePool(pool) {
-        const preferFirsts = want[2] <= 2;
+        const preferFirsts = scoreWant[2] <= 2;
         const mid = b => (preferFirsts && (b.sn || "").trim() && parseFloat(b.n) > 1) ? 1 : 0;
         return pool
-          .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+          .map(b => ({ b, d: distance(b, scoreWant), gr: b.gr || 0 }))
           .sort((a, c) => a.d - c.d || mid(a.b) - mid(c.b) || bookSort(a.b, c.b));
       }
       let pool = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre);
       let filteredOut = false;
-      if (!pool.length) {
+      if (!pool.length && (stand || genre)) {
         pool = BOOKS.slice();
         filteredOut = true;
       }
@@ -1082,22 +1105,24 @@
       let fallback = false;
       if (!closeEnough.length) {
         fallback = true;
-        scored = capAuthors(scorePool(BOOKS), 10, x => x.b);
+        scored = capAuthors(scored, 10, x => x.b);
       } else {
         scored = capAuthors(closeEnough, 12, x => x.b);
       }
       document.getElementById("status").textContent = fallback
         ? (filteredOut
-          ? "No books in that standalone/subgenre filter. 10 closest across the library instead."
+          ? "Nothing sits on those exact sliders \u2014 here are the 10 closest, ignoring the standalone/subgenre filters."
           : "Nothing sits on those exact sliders. 10 closest instead.")
+        : filteredOut
+        ? "No books in that standalone/subgenre filter, so here are the closest across the library."
         : want.every(v => v === 3)
         ? `${scored.length} closest to these sliders.`
         : `${scored.length} closest matches from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
       writeQuizLink();
-      render(scored.map(x => x.b), want, "quiz");
+      render(scored.map(x => x.b), scoreWant, "quiz");
       document.getElementById("results").insertAdjacentHTML("beforeend", gemsCard());
-      addSubjectMatches(want);
+      addSubjectMatches(scoreWant);
       scrollToResults();
     };
     document.getElementById("run-browse").onclick = runBrowse;
@@ -1110,14 +1135,18 @@
       const q = document.getElementById("search").value.trim().toLowerCase();
       browseQ = q;
       const sort = document.getElementById("b-sort").value;
+      // When the standalone/series dropdown is set, it decides standalone-ness,
+      // so the SERIES slider yields instead of contradicting the dropdown.
+      const effWant = want.slice();
+      if (stand) effWant[2] = 0;
       const passes = (b, useTrope, useGS) => {
         if (useGS && stand && b.s !== stand) return false;
         if (useGS && genre && b.g !== genre) return false;
         if (useTrope && trope && !tropeList(b).some(t => t.toLowerCase() === trope)) return false;
         if (q && !(`${b.t} ${b.a} ${b.ca || ""} ${b.sn || ""} ${b.tp || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
-        if (!want.some(v => v)) return true;
-        if (state.exact) return want.every((v, i) => !v || Number(b.r[i] || 3) === v);
-        return want.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
+        if (!effWant.some(v => v)) return true;
+        if (state.exact) return effWant.every((v, i) => !v || Number(b.r[i] || 3) === v);
+        return effWant.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
       };
       let list = BOOKS.filter(b => passes(b, true, true));
       browseRelax = "";
@@ -1154,10 +1183,17 @@
       browseList = list;
       browseShown = Math.min(PAGE_SIZE, list.length);
       browseFallback = false;
+      browseFiltersDropped = false;
       if (!browseList.length && want.some(v => v)) {
+        const dropPool = BOOKS.filter(b =>
+          (!stand || b.s === stand) &&
+          (!genre || b.g === genre) &&
+          (!trope || tropeList(b).some(t => t.toLowerCase() === trope)));
+        browseFiltersDropped = !dropPool.length;
+        const fbPool = dropPool.length ? dropPool : BOOKS;
         browseList = capAuthors(
-          BOOKS
-            .map(b => ({ b, d: distance(b, want), gr: b.gr || 0 }))
+          fbPool
+            .map(b => ({ b, d: distance(b, effWant), gr: b.gr || 0 }))
             .sort((a, c) => a.d - c.d || bookSort(a.b, c.b)),
           10,
           x => x.b
@@ -1175,16 +1211,19 @@
       scrollToResults();
     }
     let browseFallback = false;
+    let browseFiltersDropped = false;
     let browseQ = "";
     let browseRelax = "";
     let browseFavorites = false;
     function showBrowse() {
       const label = browseFavorites
         ? (browseQ
-          ? "No luck with that title \u2014 yet! Check the spelling, try the author's name, or tap the sliders and let them hunt for you. Reader favorites meanwhile:"
+          ? "No match for that title. Reader favorites below."
           : "Nothing matches those filters yet. Reader favorites meanwhile:")
         : browseFallback
-        ? `No exact matches for those filters. 10 closest instead.`
+        ? (browseFiltersDropped
+          ? "No exact matches for those filters \u2014 here are the 10 closest, ignoring the dropdown filters."
+          : "No exact matches for those filters. 10 closest instead.")
         : browseRelax === "trope"
         ? `No books pair that trope with the other filters, so the trope filter came off. ${browseList.length} books. Showing ${browseShown}.`
         : browseRelax === "filters"
@@ -1195,6 +1234,10 @@
       document.getElementById("status").textContent = label;
       render(browseList.slice(0, browseShown), state.exact ? state.b : null, null,
         browseQ ? "No luck with that title \u2014 yet! Check the spelling, try the author's name, or tap the sliders and let them hunt for you." : undefined);
+      if (browseFavorites && browseQ) {
+        document.getElementById("results").insertAdjacentHTML("afterbegin",
+          `<div class="nomatch-banner"><h2>No luck with that title \u2014 yet!</h2><p>Check the spelling, try the author's name, or tap the sliders and let them hunt for you.</p></div><h2>Reader favorites (no match for that title)</h2>`);
+      }
       document.getElementById("more").hidden = browseShown >= browseList.length;
     }
     document.getElementById("more").onclick = () => {
