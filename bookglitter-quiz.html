@@ -255,6 +255,12 @@
     .results h2 {
       font-family: Georgia, serif; font-size: 1.1rem; margin: 16px 0 8px; font-weight: 600;
     }
+    .empty-state {
+      border: 1px dashed var(--line); border-radius: 12px; background: var(--navy-2);
+      padding: 26px 16px; text-align: center; font-family: system-ui, sans-serif;
+    }
+    .empty-state h2 { margin: 0 0 6px; }
+    .empty-state p { margin: 0; color: var(--muted); font-size: .9rem; }
     @media (min-width: 720px) {
       .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
       .cell { min-height: 58px; font-size: .78rem; }
@@ -497,6 +503,7 @@
       document.getElementById("tab-quiz").classList.toggle("on", which === "quiz");
       document.getElementById("tab-browse").classList.toggle("on", which === "browse");
       document.getElementById("results").innerHTML = "";
+      showEmptyState();
       document.getElementById("more").hidden = true;
     }
     const startView = new URLSearchParams(location.search).get("view");
@@ -824,9 +831,20 @@
         if ([...sel.options].some(o => o.value === current)) sel.value = current;
       });
     }
+    const EMPTY_STATE_HTML = `<div class="empty-state"><h2>Your next read is six sliders away</h2><p>Set your sliders above, then tap Glitter my next read and watch the sparkle happen.</p></div>`;
+    function showEmptyState() {
+      if (!BOOKS.length) return;
+      const box = document.getElementById("results");
+      if (box && !box.querySelector(".book, .err, .gems, h2")) box.innerHTML = EMPTY_STATE_HTML;
+    }
+    function scrollToResults() {
+      const el = document.getElementById("status");
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     function clearResults() {
       coverGen += 1;
       document.getElementById("results").innerHTML = "";
+      showEmptyState();
       document.getElementById("more").hidden = true;
       browseList = [];
       browseShown = 0;
@@ -1080,6 +1098,7 @@
       render(scored.map(x => x.b), want, "quiz");
       document.getElementById("results").insertAdjacentHTML("beforeend", gemsCard());
       addSubjectMatches(want);
+      scrollToResults();
     };
     document.getElementById("run-browse").onclick = runBrowse;
     document.getElementById("search").addEventListener("keydown", e => { if (e.key === "Enter") runBrowse(); });
@@ -1153,6 +1172,7 @@
         browseFavorites = true;
       }
       showBrowse();
+      scrollToResults();
     }
     let browseFallback = false;
     let browseQ = "";
@@ -1272,6 +1292,7 @@
         fillTropes();
         status.textContent = "";
         if (!fromCache || !showedCache) applyDeepLink();
+        showEmptyState();
         showedCache = true;
       }
       function saveBooks() {
