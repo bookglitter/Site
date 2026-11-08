@@ -289,6 +289,15 @@
       padding: 18px 16px; text-align: center; font-family: system-ui, sans-serif;
     }
     .nomatch-banner h2 { margin: 0 0 6px; font-size: 1.25rem; }
+    .results-sort {
+      display: flex; align-items: center; gap: 8px; margin: 10px 0 0;
+      font-family: system-ui, sans-serif; color: var(--muted); font-size: .85rem;
+    }
+    .results-sort[hidden] { display: none; }
+    .results-sort select {
+      background: var(--navy-2); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 10px; padding: 8px 10px; font-size: .85rem;
+    }
     .nomatch-banner p { margin: 0; color: var(--muted); font-size: .9rem; }
     @media (min-width: 720px) {
       .scale { grid-template-columns: 110px repeat(6, 1fr); min-width: 0; }
@@ -367,6 +376,13 @@
     </div>
     <p class="status" id="status">Loading the library…</p>
     <p class="disclosure">As an Amazon Associate I earn from qualifying purchases.</p>
+    <div class="results-sort" id="results-sort" hidden>
+      <label for="results-sort-select">Sort results</label>
+      <select id="results-sort-select">
+        <option value="best">Best match</option>
+        <option value="gr">Goodreads rating</option>
+      </select>
+    </div>
     <div class="results" id="results"></div>
     <button class="more" id="more" type="button" hidden>Show more books</button>
   </div>
@@ -392,19 +408,31 @@
     const AMAZON_TAG = "bookglitter-20";
     const PAGE_SIZE = 30;
     const COVER_CONCURRENCY = 6;
-    const BOOKS_CACHE_KEY = "bookglitter-books-v5";
+    const BOOKS_CACHE_KEY = "bookglitter-books-v6";
     const BOOKS_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
     const coverCache = {};
     let coverGen = 0;
     const SLIDERS = [
       { axis: "ROMANCE", short: "Romance", cells: ["Side plot", "Some romance", "Even mix", "Romance leads", "The point"] },
-      { axis: "LIGHT–DARK", short: "Light–dark", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
-      { axis: "SERIES", short: "Series", cells: ["Standalone", "Duology", "Short series", "Long series", "Huge series"] },
+      { axis: "MOOD", short: "Mood", cells: ["Soft / cozy", "Mild sting", "Mixed", "Heavy", "Grief / violence"] },
+      { axis: "LENGTH", short: "Length", hint: "Pages in the print edition", cells: ["Quick read", "Slim novel", "Standard novel", "Chunky", "Epic / doorstopper"] },
       { axis: "SPICE", short: "Spice", cells: ["Camera leaves", "Fade to black", "Some on-page", "Open door", "Explicit"] },
-      { axis: "QUEST–COURT", short: "Quest–court", hint: "Quest or court politics", cells: ["Action / quest", "Mostly quest", "Mixed", "Mostly court", "Court / politics"] },
+      { axis: "ACTION", short: "Action", hint: "Adventure out in the world ↔ schemes at court", cells: ["On the road", "Mostly journey", "Mixed", "Mostly court", "All court intrigue"] },
       { axis: "REREAD", short: "Reread", cells: ["Once is enough", "Maybe once more", "Would revisit", "Comfort reread", "Immediate reread"] }
     ];
     const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], l: [0,0,0,0,0,0], exact: false };
+    // Fix #9: a book's slider value may be null (Length pending a verified
+    // page count exports r[2] as null). sliderVal returns a 1-5 number or null.
+    function sliderVal(b, i) {
+      const n = b && b.r ? Number(b.r[i]) : NaN;
+      return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
+    }
+    function grVal(b) {
+      const n = parseFloat(b && b.gr);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    let resultsSort = "best";
+    let resultsOrigCounter = 0;
     let seedBook = null;
     let deepLinkFeatured = false;
     let likeClose = [];
@@ -422,7 +450,9 @@
     }
     function bookSiteUrl(b) {
       const feat = encodeURIComponent(b.t || "");
-      const r = (b.r || []).filter(n => n >= 1 && n <= 5).join(",");
+      const r = (b.r || []).length === 6 && (b.r || []).every(n => Number(n) >= 1 && Number(n) <= 5)
+        ? (b.r || []).join(",")
+        : "";
       let url = `https://www.bookglitter.com/sliders?view=library&feat=${feat}`;
       if (b.a) url += `&a=${encodeURIComponent(b.a)}`;
       if (r.split(",").length === 6) url += `&r=${r}&exact=1`;
@@ -524,6 +554,7 @@
           const n = Number(data[k]);
           return n >= 1 && n <= 5 ? n : 3;
         });
+        applySentencePhrases(q);
         paint("q");
         show("quiz");
         note.textContent = "Sliders set. Matches are below.";
@@ -543,6 +574,7 @@
       document.getElementById("tab-quiz").classList.toggle("on", which === "quiz");
       document.getElementById("tab-browse").classList.toggle("on", which === "browse");
       document.getElementById("results").innerHTML = "";
+      resetResultsSort();
       showEmptyState();
       document.getElementById("more").hidden = true;
     }
@@ -569,15 +601,22 @@
     function sameSliders(a, b) {
       const ra = a.r || [];
       const rb = b.r || [];
-      return ra.length === 6 && rb.length === 6 && ra.every((n, i) => Number(n) === Number(rb[i]));
+      return ra.length === 6 && rb.length === 6 && ra.every((n, i) => {
+        const va = sliderVal(a, i), vb = sliderVal(b, i);
+        return va !== null && vb !== null && va === vb;
+      });
     }
     function withinOne(a, want) {
-      return want.every((v, i) => Math.abs(Number(a.r[i] || 3) - v) <= 1);
+      return want.every((v, i) => {
+        if (!v) return true;
+        const bv = sliderVal(a, i);
+        return bv === null || Math.abs(bv - v) <= 1;
+      });
     }
     function moreLike(book, fromDeepLink) {
       deepLinkFeatured = !!fromDeepLink;
       seedBook = book;
-      state.b = (book.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
+      state.b = [0,1,2,3,4,5].map(i => sliderVal(book, i) || 0);
       state.exact = true;
       paint("b");
       document.getElementById("search").value = book.t || "";
@@ -586,7 +625,7 @@
     }
     function runLike() {
       if (!seedBook) return;
-      const want = (seedBook.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
+      const want = [0,1,2,3,4,5].map(i => sliderVal(seedBook, i) || 0);
       likeWant = want;
       const exact = BOOKS.filter(b => sameSliders(b, seedBook)).sort(bookSort);
       exact.sort((a, b) => {
@@ -611,6 +650,7 @@
         `<h2>Close seconds</h2>` +
         (likeClose.length ? renderList(likeClose.slice(0, likeShown), want) : `<p class="hint">No close seconds in the library yet.</p>`);
       hydrateCovers();
+      syncResultsSort();
       if (featBook) scrollToFeatured();
     }
 
@@ -678,7 +718,11 @@
     }
     function distance(book, want) {
       let d = 0;
-      want.forEach((v, i) => { if (v) d += Math.abs((book.r[i] || 3) - v); });
+      want.forEach((v, i) => {
+        if (!v) return;
+        const bv = sliderVal(book, i);
+        if (bv !== null) d += Math.abs(bv - v);
+      });
       return d;
     }
     function escapeHtml(s) {
@@ -703,7 +747,7 @@
     }
     function matchPct(book, want) {
       if (!want || !want.some(v => v)) return null;
-      const active = want.filter(v => v).length;
+      const active = want.filter((v, i) => v && sliderVal(book, i) !== null).length;
       const max = active * 4;
       if (!max) return null;
       const d = distance(book, want);
@@ -796,11 +840,16 @@
         const buyRow = buyUrl
           ? `<div class="buy-row"><a class="buy-btn" href="${escapeHtml(buyUrl)}" target="_blank" rel="sponsored noopener">Buy this book</a></div>`
           : "";
+        const lengthPending = sliderVal(b, 2) === null && Array.isArray(b.r) && b.r.length === 6;
         const why = (mode === "quiz")
-          ? ""
+          ? (lengthPending ? `<span class="pill">Length –</span>` : "")
           : want
-          ? SLIDERS.map((s, i) => (!want[i] || Math.abs((b.r[i] || 3) - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${b.r[i]}</span>`).join("")
-          : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>`;
+          ? SLIDERS.map((s, i) => {
+              if (i === 2 && lengthPending) return `<span class="pill">Length –</span>`;
+              const bv = sliderVal(b, i);
+              return (!want[i] || bv === null || Math.abs(bv - want[i]) > 1) ? "" : `<span class="pill">${s.short} ${bv}</span>`;
+            }).join("")
+          : `<span class="pill">${escapeHtml(b.g || "")}</span><span class="pill">${b.s === "Y" ? "Standalone" : "Series"}</span>${lengthPending ? `<span class="pill">Length –</span>` : ""}`;
         const midDefault = mode === "quiz" && want && want.length === 6 && want.every(v => v === 3);
         const verdict = midDefault ? null : verdictFor(b, want);
         const pct = midDefault ? null : matchPct(b, want);
@@ -833,7 +882,7 @@
         const coByline = coauthors.length === 1 ? " & " + coauthors[0] : coauthors.length > 1 ? ", " + coauthors.slice(0, -1).join(", ") + " & " + coauthors[coauthors.length - 1] : "";
         const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
         const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
-        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""}><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
+        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""} data-gr="${grVal(b) === null ? "" : grVal(b)}"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode, emptyText) {
@@ -845,6 +894,7 @@
       }
       box.innerHTML = renderList(list, want, mode);
       hydrateCovers();
+      syncResultsSort();
     }
     function tropeList(b) {
       return (b.tp || "").split(";").map(s => s.trim()).filter(Boolean);
@@ -893,8 +943,64 @@
       const el = document.querySelector('.book[data-featured="1"]');
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    // Fix #9: Goodreads sort for rendered results. The control stays hidden
+    // until at least one result card exists. Sorting re-orders cards within
+    // each results section only; a featured card is a barrier and never moves.
+    function ensureOrigIndices() {
+      document.querySelectorAll("#results article.book").forEach(el => {
+        if (!el.dataset.orig) el.dataset.orig = String(++resultsOrigCounter);
+      });
+    }
+    function sortArticleRun(run) {
+      if (run.length < 2) return;
+      const parent = run[0].parentNode;
+      const anchor = run[run.length - 1].nextSibling;
+      const sorted = run.slice().sort((x, y) => {
+        if (resultsSort === "gr") {
+          const gx = parseFloat(x.dataset.gr), gy = parseFloat(y.dataset.gr);
+          const vx = Number.isFinite(gx) ? gx : null, vy = Number.isFinite(gy) ? gy : null;
+          if (vx !== null && vy !== null && vx !== vy) return vy - vx;
+          if (vx !== null && vy === null) return -1;
+          if (vx === null && vy !== null) return 1;
+        }
+        return Number(x.dataset.orig || 0) - Number(y.dataset.orig || 0);
+      });
+      sorted.forEach(el => parent.insertBefore(el, anchor));
+    }
+    function applyResultsSort() {
+      ensureOrigIndices();
+      const containers = [document.getElementById("results"),
+        ...document.querySelectorAll("#results .title-block, #results .subject-block")].filter(Boolean);
+      containers.forEach(container => {
+        let run = [];
+        const flush = () => { sortArticleRun(run); run = []; };
+        [...container.childNodes].forEach(node => {
+          if (node.nodeType === 1 && node.matches("article.book") && !node.dataset.featured) run.push(node);
+          else if (node.nodeType === 1) flush();
+        });
+        flush();
+      });
+    }
+    function syncResultsSort() {
+      const wrap = document.getElementById("results-sort");
+      if (wrap) wrap.hidden = !document.querySelector("#results article.book");
+      ensureOrigIndices();
+      if (resultsSort === "gr") applyResultsSort();
+    }
+    function resetResultsSort() {
+      resultsSort = "best";
+      const sel = document.getElementById("results-sort-select");
+      if (sel) sel.value = "best";
+      const wrap = document.getElementById("results-sort");
+      if (wrap) wrap.hidden = true;
+    }
+    document.getElementById("results-sort-select").addEventListener("change", (e) => {
+      resultsSort = e.target.value === "gr" ? "gr" : "best";
+      applyResultsSort();
+    });
     function clearResults() {
       coverGen += 1;
+      resetResultsSort();
       document.getElementById("results").innerHTML = "";
       showEmptyState();
       document.getElementById("more").hidden = true;
@@ -925,7 +1031,34 @@
       clearResults();
       document.getElementById("status").textContent = "Filters cleared.";
     };
-    const SLIDER_PHRASES = ["side plot","subplot","barely any romance","some romance","romance on the side","romance is the point","the point","all romance","mostly romance","love story","romantic","romance","closed door","closed-door","fade to black","kissing only","no spice","open door","open-door","very spicy","high spice","on page","on-page","explicit","erotica","spicy","clean","one book","standalone","stand alone","stand-alone","two books","2 books","duology","huge series","long series","many books","series","one and done","read once","reread","comfort","wholesome","fluffy","sweet","cozy","soft","light","grief","violence","brutal","horror","tragic","angsty","angst","heavy","dark","politics","political","court","adventure","battle","action","quest","small town","small-town"];
+    // Fix #9: strip list for subject extraction. Series-length phrases stay
+    // stripped (they are filter words, not subjects) but no longer map to
+    // axis 3 — see applySentencePhrases. Length vocabulary is stripped too.
+    const SLIDER_PHRASES = ["side plot","subplot","barely any romance","some romance","romance on the side","romance is the point","the point","all romance","mostly romance","love story","romantic","romance","closed door","closed-door","fade to black","kissing only","no spice","open door","open-door","very spicy","high spice","on page","on-page","explicit","erotica","spicy","clean","one book","standalone","stand alone","stand-alone","two books","2 books","duology","huge series","long series","many books","series","one and done","read once","reread","comfort","wholesome","fluffy","sweet","cozy","soft","light","grief","violence","brutal","horror","tragic","angsty","angst","heavy","dark","politics","political","court","adventure","battle","action","quest","small town","small-town","quick read","short book","long book","doorstopper","chunky","novella","slim novel","standard novel","epic"];
+    // Fix #9 phrase routing for a typed sentence: standalone/series wording
+    // re-points to the standalone dropdown (column E filter); Length wording
+    // sets axis 3. Series wording never sets axis 3 again.
+    const STANDALONE_PHRASES = ["standalone", "stand alone", "stand-alone", "one book", "one and done"];
+    const SERIES_PHRASES = ["duology", "trilogy", "huge series", "long series", "many books", "short series", "two books", "2 books", "series"];
+    const LENGTH_PHRASES = [["doorstopper", 5], ["epic", 5], ["chunky", 4], ["long book", 4], ["standard novel", 3], ["slim novel", 2], ["quick read", 1], ["short book", 1], ["novella", 1]];
+    function applySentencePhrases(text) {
+      const t = " " + String(text || "").toLowerCase().replace(/[^a-z0-9\s-]/g, " ") + " ";
+      const has = phrase => t.indexOf(" " + phrase + " ") !== -1 || t.indexOf(" " + phrase + ",") !== -1;
+      let stand = "";
+      if (STANDALONE_PHRASES.some(has)) stand = "Y";
+      else if (SERIES_PHRASES.some(has)) stand = "N";
+      if (stand) {
+        const sel = document.getElementById("q-stand");
+        if (sel) sel.value = stand;
+        // The dropdown now carries standalone-ness, so axis 3 is Any unless
+        // the sentence also names a Length.
+        state.q[2] = 0;
+      }
+      for (const [phrase, val] of LENGTH_PHRASES) {
+        if (has(phrase)) { state.q[2] = val; break; }
+      }
+      return stand;
+    }
     function subjectPhrase(raw) {
       let q = String(raw || "").toLowerCase();
       SLIDER_PHRASES.slice().sort((a, b) => b.length - a.length).forEach(w => { q = q.split(w).join(" "); });
@@ -1122,16 +1255,15 @@
       }
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
-      // When the standalone/series dropdown is set, it decides standalone-ness,
-      // so the SERIES slider stops scoring instead of contradicting the dropdown.
+      // Fix #9: the standalone dropdown and the Length slider are independent
+      // axes now — both always score; neither yields to the other. (The old
+      // series-firsts tie-break went with the yield logic: it keyed off the
+      // series meaning of axis 3, which no longer exists.)
       const scoreWant = want.slice();
-      if (stand) scoreWant[2] = 0;
       function scorePool(pool) {
-        const preferFirsts = scoreWant[2] >= 1 && scoreWant[2] <= 2;
-        const mid = b => (preferFirsts && (b.sn || "").trim() && parseFloat(b.n) > 1) ? 1 : 0;
         return pool
           .map(b => ({ b, d: distance(b, scoreWant), gr: b.gr || 0 }))
-          .sort((a, c) => a.d - c.d || mid(a.b) - mid(c.b) || bookSort(a.b, c.b));
+          .sort((a, c) => a.d - c.d || bookSort(a.b, c.b));
       }
       let pool = BOOKS.filter(b => !stand || b.s === stand).filter(b => !genre || b.g === genre);
       let filteredOut = false;
@@ -1174,18 +1306,24 @@
       const q = document.getElementById("search").value.trim().toLowerCase();
       browseQ = q;
       const sort = document.getElementById("b-sort").value;
-      // When the standalone/series dropdown is set, it decides standalone-ness,
-      // so the SERIES slider yields instead of contradicting the dropdown.
+      // Fix #9: standalone dropdown and Length slider score independently.
       const effWant = want.slice();
-      if (stand) effWant[2] = 0;
       const passes = (b, useTrope, useGS) => {
         if (useGS && stand && b.s !== stand) return false;
         if (useGS && genre && b.g !== genre) return false;
         if (useTrope && trope && !tropeList(b).some(t => t.toLowerCase() === trope)) return false;
         if (q && !(`${b.t} ${b.a} ${b.ca || ""} ${b.sn || ""} ${b.tp || ""} ${b.b || ""}`.toLowerCase().includes(q))) return false;
         if (!effWant.some(v => v)) return true;
-        if (state.exact) return effWant.every((v, i) => !v || Number(b.r[i] || 3) === v);
-        return effWant.every((v, i) => !v || Math.abs((b.r[i] || 3) - v) <= 1);
+        if (state.exact) return effWant.every((v, i) => {
+          if (!v) return true;
+          const bv = sliderVal(b, i);
+          return bv === null || bv === v;
+        });
+        return effWant.every((v, i) => {
+          if (!v) return true;
+          const bv = sliderVal(b, i);
+          return bv === null || Math.abs(bv - v) <= 1;
+        });
       };
       let list = BOOKS.filter(b => passes(b, true, true));
       browseRelax = "";
@@ -1291,6 +1429,7 @@
           `${likeClose.length} close seconds. Showing ${likeShown}.`;
         document.getElementById("more").hidden = likeShown >= likeClose.length;
         hydrateCovers();
+        syncResultsSort();
         return;
       }
       browseShown = Math.min(browseShown + PAGE_SIZE, browseList.length);
