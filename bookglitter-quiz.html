@@ -31,7 +31,7 @@
     .board { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 8px; overflow: hidden; }
     .scale {
       display: grid;
-      grid-template-columns: 124px repeat(5, minmax(64px, 1fr));
+      grid-template-columns: 124px repeat(6, minmax(56px, 1fr));
       gap: 8px;
       align-items: stretch;
       margin-bottom: 8px;
@@ -281,7 +281,7 @@
     .nomatch-banner h2 { margin: 0 0 6px; font-size: 1.25rem; }
     .nomatch-banner p { margin: 0; color: var(--muted); font-size: .9rem; }
     @media (min-width: 720px) {
-      .scale { grid-template-columns: 110px repeat(5, 1fr); min-width: 0; }
+      .scale { grid-template-columns: 110px repeat(6, 1fr); min-width: 0; }
       .cell { min-height: 58px; font-size: .78rem; }
       .cover-wrap { flex-basis: 72px; width: 72px; height: 108px; }
     }
@@ -449,11 +449,11 @@
       return `Starting ${b.t} by ${b.a}${extra}\nFind it on Book Glitter`;
     }
     function boardHTML(prefix) {
-      const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`;
+      const head = `<div class="scale head"><span class="axis">axis</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>Any</span></div>`;
       const rows = SLIDERS.map((s, i) => `
         <div class="scale" data-prefix="${prefix}" data-i="${i}">
           <div class="axis">${s.axis}${s.hint ? `<span class="axis-hint">${s.hint}</span>` : ""}</div>
-          ${s.cells.map((label, n) => `<button type="button" class="cell" data-n="${n+1}">${label}</button>`).join("")}
+          ${s.cells.map((label, n) => `<button type="button" class="cell" data-n="${n+1}">${label}</button>`).join("")}<button type="button" class="cell any" data-n="0">Any</button>
         </div>`).join("");
       return head + rows;
     }
@@ -475,7 +475,7 @@
         if (prefix === "l") return;
         btn.addEventListener("click", () => {
           const n = Number(btn.dataset.n);
-          if (prefix === "b" && state.b[i] === n) state.b[i] = 0;
+          if ((prefix === "b" || prefix === "q") && state[prefix][i] === n) state[prefix][i] = 0;
           else state[prefix][i] = n;
           paint(prefix);
         });
@@ -593,7 +593,7 @@
     function parseSliderParam() {
       const raw = new URLSearchParams(location.search).get("r") || "";
       const parts = raw.split(",").map(n => Number(n));
-      if (parts.length !== 6 || parts.some(n => !n || n < 1 || n > 5)) return null;
+      if (parts.length !== 6 || parts.some(n => !Number.isInteger(n) || n < 0 || n > 5)) return null;
       return parts;
     }
     function applyDeepLink() {
@@ -1081,6 +1081,12 @@
     }
     document.getElementById("run-quiz").onclick = () => {
       const want = state.q.slice();
+      if (!want.some(v => v)) {
+        document.getElementById("status").textContent = "Every slider is set to Any.";
+        document.getElementById("results").innerHTML = `<p class="err">Any on all six sliders gives the finder nothing to hunt with. Pick a value on at least one slider \u2014 or tap Start over for the middle-of-the-road mix.</p>`;
+        document.getElementById("more").hidden = true;
+        return;
+      }
       const stand = document.getElementById("q-stand").value;
       const genre = document.getElementById("q-genre").value;
       // When the standalone/series dropdown is set, it decides standalone-ness,
@@ -1088,7 +1094,7 @@
       const scoreWant = want.slice();
       if (stand) scoreWant[2] = 0;
       function scorePool(pool) {
-        const preferFirsts = scoreWant[2] <= 2;
+        const preferFirsts = scoreWant[2] >= 1 && scoreWant[2] <= 2;
         const mid = b => (preferFirsts && (b.sn || "").trim() && parseFloat(b.n) > 1) ? 1 : 0;
         return pool
           .map(b => ({ b, d: distance(b, scoreWant), gr: b.gr || 0 }))
