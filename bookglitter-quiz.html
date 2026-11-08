@@ -1274,14 +1274,25 @@
       let scored = scorePool(pool);
       const closeEnough = scored.filter(x => x.d <= 3);
       let fallback = false;
+      let fallbackMixed = false;
       if (!closeEnough.length) {
         fallback = true;
-        scored = capAuthors(scored, 10, x => x.b);
+        if ((stand || genre) && pool.length < BOOKS.length) {
+          // Fix #10 (N2): the dropdown-filtered pool scores first; the wider
+          // library only fills slots the pool cannot fill on its own, and
+          // the status line discloses it whenever that happens.
+          const inPool = new Set(pool);
+          const wider = scorePool(BOOKS.filter(b => !inPool.has(b)));
+          scored = capAuthors(scored.concat(wider), 10, x => x.b);
+          fallbackMixed = scored.some(x => !inPool.has(x.b));
+        } else {
+          scored = capAuthors(scored, 10, x => x.b);
+        }
       } else {
         scored = capAuthors(closeEnough, 12, x => x.b);
       }
       document.getElementById("status").textContent = fallback
-        ? (filteredOut
+        ? (filteredOut || fallbackMixed
           ? "Nothing sits on those exact sliders \u2014 here are the 10 closest, ignoring the standalone/subgenre filters."
           : "Nothing sits on those exact sliders. 10 closest instead.")
         : filteredOut
@@ -1326,6 +1337,26 @@
         });
       };
       let list = BOOKS.filter(b => passes(b, true, true));
+      // Fix #10 (N1): a title/author text search scans the whole library —
+      // slider settings never filter it (the "Verity" wall: sliders from a
+      // campaign link hid the very book the reader typed). Dropdown filters
+      // still apply when they leave a hit standing; if they would hide
+      // every hit, the title wins and the status line says so.
+      let titleSearch = false;
+      let titleFiltersAside = false;
+      if (q) {
+        const textHit = b => (`${b.t} ${b.a} ${b.ca || ""} ${b.sn || ""} ${b.tp || ""} ${b.b || ""}`).toLowerCase().includes(q);
+        const allHits = BOOKS.filter(textHit);
+        if (allHits.length) {
+          const kept = allHits.filter(b =>
+            (!stand || b.s === stand) &&
+            (!genre || b.g === genre) &&
+            (!trope || tropeList(b).some(t => t.toLowerCase() === trope)));
+          list = kept.length ? kept : allHits;
+          titleSearch = true;
+          titleFiltersAside = !kept.length && !!(stand || genre || trope);
+        }
+      }
       browseRelax = "";
       if (!list.length && trope) {
         const wider = BOOKS.filter(b => passes(b, false, true));
@@ -1361,20 +1392,24 @@
       browseShown = Math.min(PAGE_SIZE, list.length);
       browseFallback = false;
       browseFiltersDropped = false;
-      if (!browseList.length && want.some(v => v)) {
-        const dropPool = BOOKS.filter(b =>
+      browseTitleSearch = titleSearch;
+      browseTitleAside = titleSearch && (want.some(v => v) || titleFiltersAside);
+      if (!browseList.length && !q && want.some(v => v)) {
+        // Fix #10 (N2): score the dropdown-filtered pool first — every
+        // in-filter book ranks ahead of every out-of-filter book — and let
+        // the wider library only fill slots the pool cannot. If any shown
+        // book sits outside the dropdown filters, the status line
+        // discloses it (the fix #4 wording in showBrowse).
+        const inFilters = b =>
           (!stand || b.s === stand) &&
           (!genre || b.g === genre) &&
-          (!trope || tropeList(b).some(t => t.toLowerCase() === trope)));
-        browseFiltersDropped = !dropPool.length;
-        const fbPool = dropPool.length ? dropPool : BOOKS;
-        browseList = capAuthors(
-          fbPool
-            .map(b => ({ b, d: distance(b, effWant), gr: b.gr || 0 }))
-            .sort((a, c) => a.d - c.d || bookSort(a.b, c.b)),
-          10,
-          x => x.b
-        ).map(x => x.b);
+          (!trope || tropeList(b).some(t => t.toLowerCase() === trope));
+        const scoredAll = BOOKS
+          .map(b => ({ b, d: distance(b, effWant), gr: b.gr || 0, inF: inFilters(b) }))
+          .sort((a, c) => (a.inF === c.inF ? (a.d - c.d || bookSort(a.b, c.b)) : a.inF ? -1 : 1));
+        const top = capAuthors(scoredAll, 10, x => x.b);
+        browseFiltersDropped = !!(stand || genre || trope) && top.some(x => !x.inF);
+        browseList = top.map(x => x.b);
         browseShown = browseList.length;
         browseFallback = true;
       }
@@ -1389,6 +1424,8 @@
     }
     let browseFallback = false;
     let browseFiltersDropped = false;
+    let browseTitleSearch = false;
+    let browseTitleAside = false;
     let browseQ = "";
     let browseRelax = "";
     let browseFavorites = false;
@@ -1397,6 +1434,8 @@
         ? (browseQ
           ? "No match for that title. Reader favorites below."
           : "Nothing matches those filters yet. Reader favorites meanwhile:")
+        : browseTitleSearch
+        ? `${browseList.length} book${browseList.length === 1 ? "" : "s"} matched that title/author search${browseTitleAside ? " — a title search scans the whole library, so the sliders/filters were set aside" : ""}. Showing ${browseShown}.`
         : browseFallback
         ? (browseFiltersDropped
           ? "No exact matches for those filters \u2014 here are the 10 closest, ignoring the dropdown filters."
