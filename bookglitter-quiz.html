@@ -189,6 +189,16 @@
       border-radius: 999px; padding: 6px 10px; font-size: .75rem; cursor: pointer;
       font-family: system-ui, sans-serif; text-decoration: none;
     }
+    .book.featured { border-color: var(--purple-2); scroll-margin-top: 12px; }
+    .buy-row { margin-top: 10px; }
+    .book a.buy-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(180deg, var(--purple), var(--purple-2));
+      color: #fff; border: 1px solid var(--purple);
+      border-radius: 999px; padding: 9px 16px;
+      font: 700 .82rem system-ui, sans-serif; text-decoration: none; cursor: pointer;
+    }
+    .book a.buy-btn:hover { color: #fff; text-decoration: none; filter: brightness(1.08); }
     .share-modal {
       position: fixed; inset: 0; background: rgba(6,12,22,.72);
       display: none; align-items: center; justify-content: center; z-index: 20; padding: 16px;
@@ -396,6 +406,7 @@
     ];
     const state = { q: [3,3,3,3,3,3], b: [0,0,0,0,0,0], l: [0,0,0,0,0,0], exact: false };
     let seedBook = null;
+    let deepLinkFeatured = false;
     let likeClose = [];
     let likeShown = 0;
     let likeWant = null;
@@ -420,6 +431,16 @@
     function bookAmazon(b) {
       const raw = b.u || `https://www.amazon.com/s?k=${encodeURIComponent((b.t || "") + " " + (b.a || ""))}`;
       return affUrl(raw);
+    }
+    function isLibraryFeatLink() {
+      const params = new URLSearchParams(location.search);
+      return params.get("view") === "library" && !!(params.get("feat") || "").trim();
+    }
+    function featuredBuyUrl(b) {
+      // Fix #8: the featured card's Buy button uses the row's Link to Buy
+      // value (dataset field u, Database column N) verbatim — never the
+      // constructed search fallback in bookAmazon(). No value, no button.
+      return String((b && b.u) || "").trim();
     }
     function seriesAmazon(b) {
       const series = (b.sn || "").trim();
@@ -553,7 +574,8 @@
     function withinOne(a, want) {
       return want.every((v, i) => Math.abs(Number(a.r[i] || 3) - v) <= 1);
     }
-    function moreLike(book) {
+    function moreLike(book, fromDeepLink) {
+      deepLinkFeatured = !!fromDeepLink;
       seedBook = book;
       state.b = (book.r || [3,3,3,3,3,3]).map(n => Number(n) || 3);
       state.exact = true;
@@ -579,15 +601,17 @@
       document.getElementById("status").textContent =
         `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} close seconds. Showing ${likeShown}.`;
       document.getElementById("more").hidden = likeShown >= likeClose.length;
+      const featBook = deepLinkFeatured ? seedBook : null;
       const box = document.getElementById("results");
       box.innerHTML = gemsCard() +
         `<h2>This book</h2>` +
-        renderList([seedBook], want) +
+        renderList([seedBook], want, null, featBook) +
         `<h2>Exact slider matches</h2>` +
         (exactShow.length ? renderList(exactShow, want) : `<p class="hint">No other title shares all six numbers.</p>`) +
         `<h2>Close seconds</h2>` +
         (likeClose.length ? renderList(likeClose.slice(0, likeShown), want) : `<p class="hint">No close seconds in the library yet.</p>`);
       hydrateCovers();
+      if (featBook) scrollToFeatured();
     }
 
     function parseSliderParam() {
@@ -612,7 +636,7 @@
           || named[0]
           || BOOKS.find(b => (b.t || "").toLowerCase().includes(feat));
         if (book) {
-          moreLike(book);
+          moreLike(book, isLibraryFeatLink());
           return true;
         }
       }
@@ -765,8 +789,13 @@
     function gemsCard() {
       return `<div class="gems"><p>Save this list. One email after each Sunday video, with books that sit on these sliders.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a></div>`;
     }
-    function renderList(list, want, mode) {
+    function renderList(list, want, mode, featuredBook) {
       return list.map(b => {
+        const isFeatured = !!(featuredBook && b === featuredBook);
+        const buyUrl = isFeatured ? featuredBuyUrl(b) : "";
+        const buyRow = buyUrl
+          ? `<div class="buy-row"><a class="buy-btn" href="${escapeHtml(buyUrl)}" target="_blank" rel="sponsored noopener">Buy this book</a></div>`
+          : "";
         const why = (mode === "quiz")
           ? ""
           : want
@@ -804,7 +833,7 @@
         const coByline = coauthors.length === 1 ? " & " + coauthors[0] : coauthors.length > 1 ? ", " + coauthors.slice(0, -1).join(", ") + " & " + coauthors[coauthors.length - 1] : "";
         const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
         const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
-        return `<article class="book"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${shareRow}</div></article>`;
+        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""}><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode, emptyText) {
@@ -858,6 +887,10 @@
     }
     function scrollToResults() {
       const el = document.getElementById("status");
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    function scrollToFeatured() {
+      const el = document.querySelector('.book[data-featured="1"]');
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     function clearResults() {
