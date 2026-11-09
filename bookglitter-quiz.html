@@ -160,6 +160,16 @@
     .cover-wrap.has-img .ph { display: none; }
     .book .info { flex: 1; min-width: 0; }
     .meta { color: var(--muted); font-size: .8rem; margin-bottom: 6px; }
+    .slider-line { color: var(--silver); font-size: .82rem; margin-bottom: 6px; }
+    .loading-skeleton { display: grid; gap: 8px; font-family: system-ui, sans-serif; }
+    .loading-skeleton h2 { font-family: Georgia, serif; font-size: 1.1rem; margin: 4px 0 2px; font-weight: 600; }
+    .loading-sliders { display: grid; gap: 8px; }
+    .loading-sliders span { display: block; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--navy-2); }
+    .loading-card {
+      min-height: 64px; display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--navy-2);
+      color: var(--silver); font-size: .9rem; text-align: center; padding: 12px;
+    }
     .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; align-items: center; }
     .pill { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--silver); }
     .pill.start, .pill.wait, .pill.skip {
@@ -383,7 +393,7 @@
         <option value="gr">Goodreads rating</option>
       </select>
     </div>
-    <div class="results" id="results"></div>
+    <div class="results" id="results"><div class="loading-skeleton" id="loading-skeleton"><h2>Your next read is six sliders away</h2><div class="loading-sliders" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="loading-card">Loading the library…</div></div></div>
     <button class="more" id="more" type="button" hidden>Show more books</button>
   </div>
   <div class="share-modal" id="share-modal" hidden>
@@ -566,6 +576,7 @@
       }
     }
 
+    const LOADING_SKELETON_HTML = `<div class="loading-skeleton" id="loading-skeleton"><h2>Your next read is six sliders away</h2><div class="loading-sliders" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="loading-card">Loading the library…</div></div>`;
     document.getElementById("tab-quiz").onclick = () => show("quiz");
     document.getElementById("tab-browse").onclick = () => show("browse");
     function show(which) {
@@ -638,7 +649,7 @@
       likeShown = Math.min(PAGE_SIZE, likeClose.length);
       const exactShow = exact.filter(b => !(b.t === seedBook.t && b.a === seedBook.a));
       document.getElementById("status").textContent =
-        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} close seconds. Showing ${likeShown}.`;
+        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} more close matches. Showing ${likeShown}.`;
       document.getElementById("more").hidden = likeShown >= likeClose.length;
       const featBook = deepLinkFeatured ? seedBook : null;
       const box = document.getElementById("results");
@@ -647,8 +658,8 @@
         renderList([seedBook], want, null, featBook) +
         `<h2>Exact slider matches</h2>` +
         (exactShow.length ? renderList(exactShow, want) : `<p class="hint">No other title shares all six numbers.</p>`) +
-        `<h2>Close seconds</h2>` +
-        (likeClose.length ? renderList(likeClose.slice(0, likeShown), want) : `<p class="hint">No close seconds in the library yet.</p>`);
+        `<h2>More close matches</h2>` +
+        (likeClose.length ? renderList(likeClose.slice(0, likeShown), want) : `<p class="hint">No close matches in the library yet.</p>`);
       hydrateCovers();
       syncResultsSort();
       if (featBook) scrollToFeatured();
@@ -833,6 +844,12 @@
     function gemsCard() {
       return `<div class="gems"><p>Save this list. One email after each Sunday video, with books that sit on these sliders.</p><a href="https://www.bookglitter.com/newsletter" target="_top">Join Book Glitter Gems</a></div>`;
     }
+    function sliderLine(b) {
+      return SLIDERS.map((s, i) => {
+        const v = sliderVal(b, i);
+        return `${s.short} ${v === null ? "–" : v}`;
+      }).join(" · ");
+    }
     function renderList(list, want, mode, featuredBook) {
       return list.map(b => {
         const isFeatured = !!(featuredBook && b === featuredBook);
@@ -882,7 +899,7 @@
         const coByline = coauthors.length === 1 ? " & " + coauthors[0] : coauthors.length > 1 ? ", " + coauthors.slice(0, -1).join(", ") + " & " + coauthors[coauthors.length - 1] : "";
         const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
         const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
-        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""} data-gr="${grVal(b) === null ? "" : grVal(b)}"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
+        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""} data-gr="${grVal(b) === null ? "" : grVal(b)}"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${mode === "quiz" ? "" : `<div class="slider-line">${escapeHtml(sliderLine(b))}</div>`}${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode, emptyText) {
@@ -930,9 +947,16 @@
       });
     }
     const EMPTY_STATE_HTML = `<div class="empty-state"><h2>Your next read is six sliders away</h2><p>Set your sliders above, then tap Glitter my next read and watch the sparkle happen.</p></div>`;
-    function showEmptyState() {
-      if (!BOOKS.length) return;
+    function removeLoadingSkeleton() {
       const box = document.getElementById("results");
+      if (box && box.querySelector("#loading-skeleton")) box.innerHTML = "";
+    }
+    function showEmptyState() {
+      const box = document.getElementById("results");
+      if (!BOOKS.length) {
+        if (box && !box.querySelector("#loading-skeleton")) box.innerHTML = LOADING_SKELETON_HTML;
+        return;
+      }
       if (box && !box.querySelector(".book, .err, .gems, h2")) box.innerHTML = EMPTY_STATE_HTML;
     }
     function scrollToResults() {
@@ -1360,11 +1384,21 @@
       browseRelax = "";
       if (!list.length && trope) {
         const wider = BOOKS.filter(b => passes(b, false, true));
-        if (wider.length) { list = wider; browseRelax = "trope"; }
+        if (wider.length) {
+          list = wider;
+          browseRelax = "trope";
+          document.getElementById("b-trope").value = "";
+        }
       }
       if (!list.length && (stand || genre)) {
         const wider = BOOKS.filter(b => passes(b, false, false));
-        if (wider.length) { list = wider; browseRelax = "filters"; }
+        if (wider.length) {
+          list = wider;
+          browseRelax = "filters";
+          document.getElementById("b-stand").value = "";
+          document.getElementById("b-genre").value = "";
+          if (trope) document.getElementById("b-trope").value = "";
+        }
       }
       if (sort === "gr") list.sort((a, b) => (b.gr || 0) - (a.gr || 0));
       if (sort === "title") list.sort((a, b) => a.t.localeCompare(b.t));
@@ -1465,7 +1499,7 @@
           renderList(likeClose.slice(start, likeShown), likeWant)
         );
         document.getElementById("status").textContent =
-          `${likeClose.length} close seconds. Showing ${likeShown}.`;
+          `${likeClose.length} more close matches. Showing ${likeShown}.`;
         document.getElementById("more").hidden = likeShown >= likeClose.length;
         hydrateCovers();
         syncResultsSort();
@@ -1550,6 +1584,7 @@
         BOOKS = Array.isArray(data) ? data : (data && data.books) || [];
         fillGenres();
         fillTropes();
+        removeLoadingSkeleton();
         status.textContent = "";
         if (!fromCache || !showedCache) applyDeepLink();
         showEmptyState();
@@ -1587,7 +1622,10 @@
           applyBooks(fresh, false);
           saveBooks();
         } catch (err2) {
-          if (!BOOKS.length) status.innerHTML = `<span class="err">Could not load the library.</span>`;
+          if (!BOOKS.length) {
+            removeLoadingSkeleton();
+            status.innerHTML = `<span class="err">Could not load the library.</span>`;
+          }
         }
       }
     }
