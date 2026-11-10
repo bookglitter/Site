@@ -649,7 +649,7 @@
       likeShown = Math.min(PAGE_SIZE, likeClose.length);
       const exactShow = exact.filter(b => !(b.t === seedBook.t && b.a === seedBook.a));
       document.getElementById("status").textContent =
-        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} more close matches. Showing ${likeShown}.`;
+        `${exact.length} exact match${exact.length === 1 ? "" : "es"} · ${likeClose.length} more close match${likeClose.length === 1 ? "" : "es"}. Showing ${likeShown}.`;
       document.getElementById("more").hidden = likeShown >= likeClose.length;
       const featBook = deepLinkFeatured ? seedBook : null;
       const box = document.getElementById("results");
@@ -899,7 +899,7 @@
         const coByline = coauthors.length === 1 ? " & " + coauthors[0] : coauthors.length > 1 ? ", " + coauthors.slice(0, -1).join(", ") + " & " + coauthors[coauthors.length - 1] : "";
         const hookLine = (b.hk || "").trim() ? `<div class="hook">${escapeHtml(b.hk)}</div>` : "";
         const tropePills = tropeList(b).map(t => `<button type="button" class="pill trope" data-trope="${escapeHtml(t.toLowerCase())}">${escapeHtml(t)}</button>`).join("");
-        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""} data-gr="${grVal(b) === null ? "" : grVal(b)}"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div>${mode === "quiz" ? "" : `<div class="slider-line">${escapeHtml(sliderLine(b))}</div>`}${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
+        return `<article class="book${isFeatured ? " featured" : ""}"${isFeatured ? ` data-featured="1"` : ""} data-gr="${grVal(b) === null ? "" : grVal(b)}"><a class="cover-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${coverEl(b)}</a><div class="info"><div class="title-row"><h3><a class="title-link" href="${escapeHtml(bookHref)}" target="_blank" rel="sponsored noopener">${escapeHtml(b.t)}<span class="title-sep"> · </span><span class="shop-hint">Amazon ↗</span></a></h3>${matchEl}</div><div class="meta"><a class="author-line" href="#author" data-find="${escapeHtml(b.a || "")}">${escapeHtml(b.a)}</a>${escapeHtml(coByline)} · ${escapeHtml(b.g || "")}${b.y ? " · " + b.y : ""}${b.pg ? " · " + b.pg + " pp" : ""}${b.au ? " · " + escapeHtml(b.au) : ""} · GR ${Number(b.gr || 0).toFixed(2)}</div><div class="slider-line">${escapeHtml(sliderLine(b))}</div>${hookLine}${seriesLine}${watchLine}${why ? `<div class="pills">${why}</div>` : ""}${tropePills ? `<div class="pills">${tropePills}</div>` : ""}${buyRow}${shareRow}</div></article>`;
       }).join("");
     }
     function render(list, want, mode, emptyText) {
@@ -963,9 +963,15 @@
       const el = document.getElementById("status");
       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    // Fix #12: defer the featured scroll until the render has painted
+    // (double rAF), and honor prefers-reduced-motion with an instant jump.
     function scrollToFeatured() {
       const el = document.querySelector('.book[data-featured="1"]');
-      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!el || !el.scrollIntoView) return;
+      const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const go = () => el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      if (window.requestAnimationFrame) requestAnimationFrame(() => requestAnimationFrame(go));
+      else go();
     }
     // Fix #9: Goodreads sort for rendered results. The control stays hidden
     // until at least one result card exists. Sorting re-orders cards within
@@ -1323,7 +1329,7 @@
         ? "No books in that standalone/subgenre filter, so here are the closest across the library."
         : want.every(v => v === 3)
         ? `${scored.length} closest to these sliders.`
-        : `${scored.length} closest matches from ${BOOKS.length} books.`;
+        : `${scored.length} closest match${scored.length === 1 ? "" : "es"} from ${BOOKS.length} books.`;
       document.getElementById("more").hidden = true;
       writeQuizLink();
       render(scored.map(x => x.b), scoreWant, "quiz");
@@ -1479,7 +1485,7 @@
         : browseRelax === "filters"
         ? `That filter mix is empty, so the standalone/subgenre filters came off. ${browseList.length} books. Showing ${browseShown}.`
         : state.exact
-        ? `${browseList.length} exact slider matches. Showing ${browseShown}.`
+        ? `${browseList.length} exact slider match${browseList.length === 1 ? "" : "es"}. Showing ${browseShown}.`
         : `${browseList.length} books. Showing ${browseShown}.`;
       document.getElementById("status").textContent = label;
       render(browseList.slice(0, browseShown), state.exact ? state.b : null, null,
@@ -1499,7 +1505,7 @@
           renderList(likeClose.slice(start, likeShown), likeWant)
         );
         document.getElementById("status").textContent =
-          `${likeClose.length} more close matches. Showing ${likeShown}.`;
+          `${likeClose.length} more close match${likeClose.length === 1 ? "" : "es"}. Showing ${likeShown}.`;
         document.getElementById("more").hidden = likeShown >= likeClose.length;
         hydrateCovers();
         syncResultsSort();
